@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 
 const VARIABLES_REQUERIDAS = ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY']
 
-function CrearAlmacenamientoEnMemoria() {
+export function CrearAlmacenamientoEnMemoria() {
   const datos = new Map()
 
   return {

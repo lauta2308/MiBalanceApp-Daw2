@@ -19,6 +19,14 @@ Formato: decisión — quién la aprobó — fecha — bloque.
 - Tests agregados a los requeridos: configuración con ambas variables, URL y clave faltantes por separado, y `es_prueba` con almacenamiento propio — usuario — 2026-11-08 — Block 2
 - Las pruebas contra Supabase comparten los usuarios A y B de un `beforeAll` (2 usuarios por corrida), por el límite de inicios anónimos por IP — usuario — 2026-11-08 — Block 2
 - Las constantes de módulo se escriben en MAYÚSCULAS_CON_GUIONES; AGENTS.md no las menciona y la spec ya usa ese estilo — usuario — 2026-11-08 — Block 2
+- Si falla la lectura de la sesión guardada se muestra el mensaje de error y no se crea otro usuario — usuario — 2026-11-08 — Block 3
+- La prop del texto de `MensajeError` se llama `mensaje` y el componente se exporta por defecto — usuario — 2026-11-08 — Block 3
+- `signInAnonymously` no aparece en ningún otro archivo de `src`, tests incluidos — usuario — 2026-11-08 — Block 3
+- `pruebas/sesionPersistente.test.js` arma su propio cliente con almacenamiento compartido, porque `CrearClientePrueba` no lo acepta; `CrearAlmacenamientoEnMemoria` se exporta de `ayudantesPruebas.js` para no duplicarlo — usuario — 2026-11-08 — Block 3
+- 17 tests agregados a los requeridos por la spec — usuario — 2026-11-08 — Block 3
+- Una respuesta sin sesión y sin error se trata como error de inicio de sesión — usuario — 2026-11-08 — Block 3
+- `AsegurarSesion` libera la promesa al terminar, con éxito o con error — usuario — 2026-11-08 — Block 3
+- `MensajeError` no gestiona el foco: el uso solo con teclado (RNF-08) está fuera de alcance de este PRD y se resuelve en su ticket — usuario — 2026-11-08 — Block 3
 
 ## Pendientes para FEAT-001b
 
