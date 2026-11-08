@@ -6,7 +6,7 @@
 | PRD | docs/daw/prd/prd-FEAT-001a.md |
 | Tier | FEATURE |
 | Date | 2026-11-07 |
-| Spec loops | 3 |
+| Spec loops | 4 |
 | Loops since last human decision | 0 |
 | ADR | docs/adr/adr-001-alta-de-cuenta-saldo-y-escritura-por-funciones.md |
 | Threat model | docs/daw/security/threat-FEAT-001a.md |
@@ -16,7 +16,7 @@ Se crea el proyecto React 19 + Vite 8 que habla directo con Supabase. Una migrac
 
 Decisiones del usuario en PLAN (2026-11-07): `npm test` corre solo las pruebas unitarias (`src/`), y `npm run test:integracion` corre `pruebas/` contra Supabase real. Todavía no hay proyecto de Supabase: las pruebas de integración se escriben ahora y se saltan con un aviso si falta `.env.local`.
 
-Decisión del usuario en PLAN (2026-11-08): restaurar sin cambios la sección de dependencias entre bloques, que se había borrado de la copia de trabajo. También corregir el test del Block 2 para que espere el saldo inicial como `"0"`, porque es el texto que devuelve una columna `numeric` sin escala fija.
+Decisión del usuario en PLAN (2026-11-08): restaurar sin cambios la sección de dependencias entre bloques, que se había borrado de la copia de trabajo. También corregir el test del Block 2 para que espere el saldo inicial como `"0"`, porque es el texto que devuelve una columna `numeric` sin escala fija. Vuelta de CODE (Block 2): `BAFK_MOVIMIENTOS_CATEGORIA` deja de usar `on delete restrict`, porque impedía borrar un usuario con movimientos.
 
 ## Coverage: PRD → blocks
 | Requirement | Covered by |
@@ -95,7 +95,7 @@ Implementa FR-01, FR-02 y NFR-01 según ADR-001. La función `BATF_CREAR_CUENTA_
 **Data model**
 - `BAT_CUENTAS`: `id uuid` (`BAPK_CUENTAS`, default `gen_random_uuid()`), `id_usuario uuid not null` (`BAFK_CUENTAS_USUARIO` → `auth.users(id)` `on delete cascade`; `BAUQ_CUENTAS_USUARIO` unique), `nombre varchar(30) not null`, `moneda char(3) not null default 'USD'` (`BACK_CUENTAS_MONEDA_FORMATO`: `moneda ~ '^[A-Z]{3}$'`), `saldo numeric not null default 0` (sin precisión fija: RNF-04 pide no tener tope de dígitos enteros; `BACK_CUENTAS_SALDO_DOS_DECIMALES`: `saldo = round(saldo, 2)`), `fecha_alta timestamptz not null default now()`.
 - `BAT_CATEGORIAS`: `id uuid` (`BAPK_CATEGORIAS`), `id_cuenta uuid not null` (`BAFK_CATEGORIAS_CUENTA` → `bat_cuentas(id)` `on delete cascade`), `nombre varchar(30) not null`, `tipo text not null` (`BACK_CATEGORIAS_TIPO`: `tipo in ('INGRESO','GASTO')`), `es_defecto boolean not null default false`, `fecha_alta timestamptz not null default now()`. Índices: `BAIX_CATEGORIAS_CUENTA (id_cuenta)`; índice único parcial `BAUQ_CATEGORIAS_DEFECTO_CUENTA_TIPO (id_cuenta, tipo) where es_defecto` (se usa `BAUQ_` porque garantiza unicidad).
-- `BAT_MOVIMIENTOS`: `id uuid` (`BAPK_MOVIMIENTOS`), `id_cuenta uuid not null` (`BAFK_MOVIMIENTOS_CUENTA` → `bat_cuentas(id)` `on delete cascade`), `id_categoria uuid not null` (`BAFK_MOVIMIENTOS_CATEGORIA` → `bat_categorias(id)` `on delete restrict`), `tipo text not null` (`BACK_MOVIMIENTOS_TIPO`), `monto numeric(14,2) not null` (`BACK_MOVIMIENTOS_MONTO_POSITIVO`: `monto > 0`), `fecha date not null`, `fecha_alta timestamptz not null default now()`. Índices: `BAIX_MOVIMIENTOS_CUENTA_FECHA (id_cuenta, fecha desc, fecha_alta desc)`, `BAIX_MOVIMIENTOS_CATEGORIA (id_categoria)`. Se crea ahora porque AC-22 cuenta movimientos y AC-27 los lee; las altas llegan en FEAT-001b mediante un `BASP_` `SECURITY DEFINER`.
+- `BAT_MOVIMIENTOS`: `id uuid` (`BAPK_MOVIMIENTOS`), `id_cuenta uuid not null` (`BAFK_MOVIMIENTOS_CUENTA` → `bat_cuentas(id)` `on delete cascade`), `id_categoria uuid not null` (`BAFK_MOVIMIENTOS_CATEGORIA` → `bat_categorias(id)` `on delete no action deferrable initially deferred`: sigue rechazando borrar una categoría en uso, pero comprueba al final de la transacción para que el borrado en cascada de un usuario con movimientos funcione), `tipo text not null` (`BACK_MOVIMIENTOS_TIPO`), `monto numeric(14,2) not null` (`BACK_MOVIMIENTOS_MONTO_POSITIVO`: `monto > 0`), `fecha date not null`, `fecha_alta timestamptz not null default now()`. Índices: `BAIX_MOVIMIENTOS_CUENTA_FECHA (id_cuenta, fecha desc, fecha_alta desc)`, `BAIX_MOVIMIENTOS_CATEGORIA (id_categoria)`. Se crea ahora porque AC-22 cuenta movimientos y AC-27 los lee; las altas llegan en FEAT-001b mediante un `BASP_` `SECURITY DEFINER`.
 - Rollback: es la primera migración y no hay datos reales (solo usuarios anónimos de prueba). Para revertirla: `drop trigger batr_crear_cuenta_usuario on auth.users; drop function public.batf_crear_cuenta_usuario(); drop table public.bat_movimientos, public.bat_categorias, public.bat_cuentas;` y borrar los usuarios anónimos con `limpiar_usuarios_prueba.sql`. El paso queda documentado como comentario al final de la migración.
 - RLS habilitado en las tres tablas. Políticas `for select to authenticated`: `BAPOL_CUENTAS_PROPIETARIO` (`id_usuario = (select auth.uid())`), `BAPOL_CATEGORIAS_PROPIETARIO` y `BAPOL_MOVIMIENTOS_PROPIETARIO` (`id_cuenta in (select id from public.bat_cuentas where id_usuario = (select auth.uid()))`). Sin políticas de escritura.
 
