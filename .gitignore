@@ -12,3 +12,9 @@
 .daw-journal.jsonl
 .daw/**/__pycache__/
 # END DAW
+
+node_modules/
+dist/
+.env
+.env.local
+.env.*.local
