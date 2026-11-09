@@ -27,6 +27,14 @@ Formato: decisión — quién la aprobó — fecha — bloque.
 - Una respuesta sin sesión y sin error se trata como error de inicio de sesión — usuario — 2026-11-08 — Block 3
 - `AsegurarSesion` libera la promesa al terminar, con éxito o con error — usuario — 2026-11-08 — Block 3
 - `MensajeError` no gestiona el foco: el uso solo con teclado (RNF-08) está fuera de alcance de este PRD y se resuelve en su ticket — usuario — 2026-11-08 — Block 3
+- Durante el reintento de carga se sigue viendo `MensajeError` con "Aceptar" deshabilitado, no "Cargando…" — usuario — 2026-11-09 — Block 4
+- Si Supabase responde sin error y sin conteo de movimientos, se trata como error de carga — usuario — 2026-11-09 — Block 4
+- El detalle técnico de un error de carga va a `console.error` solo en desarrollo — usuario — 2026-11-09 — Block 4
+- Las cargas duplicadas se evitan con la ref `cargaEnCurso`, por instancia del componente — usuario — 2026-11-09 — Block 4
+- 29 tests agregados a los 5 requeridos por la spec — usuario — 2026-11-09 — Block 4
+- No se usa una guarda de "sigue montado" en `SeccionCuenta`: en React 19 no tiene efecto observable — usuario — 2026-11-09 — Block 4
+- Las funciones simuladas de los tests conservan nombres como `fromSimulado` y `fetchSimulado`: AGENTS.md no define este caso — usuario — 2026-11-09 — Block 4
+- El modelo de amenazas tiene tres inexactitudes sin efecto en sus mitigaciones (no menciona `id` en la consulta de la cuenta, cita NFR-02 por RNF-04 y dice una consulta por carga donde son dos); no se corrigen en este ticket porque corregirlas exigiría volver a PLAN — orquestador, informado al usuario — 2026-11-09 — Block 4
 
 ## Pendientes para FEAT-001b
 

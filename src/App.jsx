@@ -1,3 +1,10 @@
+import GuardiaSesion from './componentes/GuardiaSesion.jsx'
+import SeccionCuenta from './paginas/SeccionCuenta.jsx'
+
 export default function App() {
-  return <h1>MiBalance</h1>
+  return (
+    <GuardiaSesion>
+      <SeccionCuenta />
+    </GuardiaSesion>
+  )
 }
