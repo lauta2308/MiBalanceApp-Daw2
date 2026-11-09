@@ -23,7 +23,7 @@ import SeccionCuenta from './SeccionCuenta.jsx'
 
 const CUENTA = { id: 'id-cuenta', nombre: 'Mi Cuenta', moneda: 'USD', saldo: '0' }
 const MENSAJE_ERROR = 'No se pudo cargar su cuenta. Vuelva a intentarlo.'
-const MENSAJE_SIN_MOVIMIENTOS = 'Aquí verás sus movimientos.'
+const MENSAJE_SIN_MOVIMIENTOS = 'Aquí verá sus movimientos.'
 const ERROR_TECNICO = 'PGRST116: JSON object requested, multiple (or no) rows returned'
 
 function CrearPromesaControlada() {
@@ -100,7 +100,7 @@ describe('SeccionCuenta', () => {
     expect(await screen.findByText(saldoFormateado)).toBeInTheDocument()
   })
 
-  it('AC-22: con 0 movimientos muestra "Aquí verás sus movimientos."', async () => {
+  it('AC-22: con 0 movimientos muestra "Aquí verá sus movimientos."', async () => {
     ContarMovimientosSimulado.mockResolvedValue(0)
 
     render(<SeccionCuenta />)
@@ -108,7 +108,7 @@ describe('SeccionCuenta', () => {
     expect(await screen.findByText(MENSAJE_SIN_MOVIMIENTOS)).toBeInTheDocument()
   })
 
-  it('AC-22: con 3 movimientos no muestra "Aquí verás sus movimientos."', async () => {
+  it('AC-22: con 3 movimientos no muestra "Aquí verá sus movimientos."', async () => {
     ContarMovimientosSimulado.mockResolvedValue(3)
 
     render(<SeccionCuenta />)
