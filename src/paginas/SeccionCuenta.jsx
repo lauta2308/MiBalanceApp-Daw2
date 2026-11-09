@@ -72,7 +72,7 @@ export default function SeccionCuenta() {
     <section>
       <h1>{datos.encabezado}</h1>
       <p>{datos.saldo}</p>
-      {datos.sinMovimientos && <p>Aquí verá sus movimientos.</p>}
+      {datos.sinMovimientos && <p>Aquí verás sus movimientos.</p>}
     </section>
   )
 }
