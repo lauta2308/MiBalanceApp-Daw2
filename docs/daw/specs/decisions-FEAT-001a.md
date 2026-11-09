@@ -35,6 +35,7 @@ Formato: decisión — quién la aprobó — fecha — bloque.
 - No se usa una guarda de "sigue montado" en `SeccionCuenta`: en React 19 no tiene efecto observable — usuario — 2026-11-09 — Block 4
 - Las funciones simuladas de los tests conservan nombres como `fromSimulado` y `fetchSimulado`: AGENTS.md no define este caso — usuario — 2026-11-09 — Block 4
 - El modelo de amenazas tiene tres inexactitudes sin efecto en sus mitigaciones (no menciona `id` en la consulta de la cuenta, cita NFR-02 por RNF-04 y dice una consulta por carga donde son dos); no se corrigen en este ticket porque corregirlas exigiría volver a PLAN — orquestador, informado al usuario — 2026-11-09 — Block 4
+- Se acepta el riesgo Medio GHSA-g3hv-75wg-m249 de `minimatch`, solo en la cadena de desarrollo de ESLint, con revisión antes del 2027-05-09 — usuario — 2026-11-09 — cierre de CODE
 
 ## Pendientes para FEAT-001b
 
