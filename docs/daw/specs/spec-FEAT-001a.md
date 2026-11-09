@@ -6,7 +6,7 @@
 | PRD | docs/daw/prd/prd-FEAT-001a.md |
 | Tier | FEATURE |
 | Date | 2026-11-07 |
-| Spec loops | 4 |
+| Spec loops | 5 |
 | Loops since last human decision | 0 |
 | ADR | docs/adr/adr-001-alta-de-cuenta-saldo-y-escritura-por-funciones.md |
 | Threat model | docs/daw/security/threat-FEAT-001a.md |
@@ -17,6 +17,8 @@ Se crea el proyecto React 19 + Vite 8 que habla directo con Supabase. Una migrac
 Decisiones del usuario en PLAN (2026-11-07): `npm test` corre solo las pruebas unitarias (`src/`), y `npm run test:integracion` corre `pruebas/` contra Supabase real. Todavía no hay proyecto de Supabase: las pruebas de integración se escriben ahora y se saltan con un aviso si falta `.env.local`.
 
 Decisión del usuario en PLAN (2026-11-08): restaurar sin cambios la sección de dependencias entre bloques, que se había borrado de la copia de trabajo. También corregir el test del Block 2 para que espere el saldo inicial como `"0"`, porque es el texto que devuelve una columna `numeric` sin escala fija. Vuelta de CODE (Block 2): `BAFK_MOVIMIENTOS_CATEGORIA` deja de usar `on delete restrict`, porque impedía borrar un usuario con movimientos.
+
+Decisión del usuario en PLAN (2026-11-09), vuelta de VERIFY: cada test requerido lleva un identificador `test_*` para que F-VER-06 pueda leerlo. El identificador es una etiqueta de esta spec; la correspondencia con el título real de cada test está en `docs/daw/reports/verify-FEAT-001a.md`.
 
 ## Coverage: PRD → blocks
 | Requirement | Covered by |
@@ -69,14 +71,14 @@ Implementa la parte de formato de FR-05. `FormatearSaldo` recibe el saldo como t
 - Variable de entorno faltante — `ObtenerConfiguracionSupabase` lanza `Error('Falta la variable VITE_SUPABASE_URL')` (o la clave); la aplicación no arranca con un cliente mal configurado.
 
 **Required tests**
-- [ ] `FormatearSaldo('0', 'USD')` devuelve `"USD 0,00"` — validates AC-01
-- [ ] `FormatearSaldo('11000', 'USD')` devuelve `"USD 11.000,00"` y `FormatearSaldo('1500.5', 'USD')` devuelve `"USD 1.500,50"` — validates AC-01
-- [ ] `FormatearSaldo('-1000', 'USD')` devuelve `"USD -1.000,00"`
-- [ ] `FormatearSaldo('1999999999999.98', 'USD')` devuelve `"USD 1.999.999.999.999,98"` sin perder dígitos
-- [ ] saldo inválido rechazado: `""`, `"abc"`, `"1,5"`, `"1.234"` y `null` lanzan `Formato de saldo inválido`
-- [ ] moneda inválida rechazada: `"usd"` y `"US"` lanzan error
-- [ ] variable faltante: `ObtenerConfiguracionSupabase({})` lanza el error que nombra `VITE_SUPABASE_URL`
-- [ ] `npm run lint` termina sin errores y `npm audit --audit-level=high` no reporta hallazgos altos ni críticos
+- [ ] `test_saldo_cero` — `FormatearSaldo('0', 'USD')` devuelve `"USD 0,00"` — validates AC-01
+- [ ] `test_saldo_miles_y_decimales` — `FormatearSaldo('11000', 'USD')` devuelve `"USD 11.000,00"` y `FormatearSaldo('1500.5', 'USD')` devuelve `"USD 1.500,50"` — validates AC-01
+- [ ] `test_saldo_negativo` — `FormatearSaldo('-1000', 'USD')` devuelve `"USD -1.000,00"`
+- [ ] `test_saldo_sin_perder_digitos` — `FormatearSaldo('1999999999999.98', 'USD')` devuelve `"USD 1.999.999.999.999,98"` sin perder dígitos
+- [ ] `test_saldo_invalido_rechazado` — saldo inválido rechazado: `""`, `"abc"`, `"1,5"`, `"1.234"` y `null` lanzan `Formato de saldo inválido`
+- [ ] `test_moneda_invalida_rechazada` — moneda inválida rechazada: `"usd"` y `"US"` lanzan error
+- [ ] `test_variable_faltante` — variable faltante: `ObtenerConfiguracionSupabase({})` lanza el error que nombra `VITE_SUPABASE_URL`
+- [ ] `test_lint_y_audit` — `npm run lint` termina sin errores y `npm audit --audit-level=high` no reporta hallazgos altos ni críticos
 
 **Completion criterion**
 `npm install`, `npm run lint`, `npm test` y `npm run build` terminan sin errores, y los tests de `formatoMoneda.test.js` y `clienteSupabase.test.js` pasan.
@@ -110,11 +112,11 @@ Implementa FR-01, FR-02 y NFR-01 según ADR-001. La función `BATF_CREAR_CUENTA_
 - Falta `.env.local` al correr `npm run test:integracion` — las pruebas se saltan y `console.warn` indica qué variable falta; no fallan con un error de red.
 
 **Required tests**
-- [ ] usuario nuevo tiene una cuenta "Mi Cuenta", moneda "USD" y saldo "0" leído como texto — validates AC-01
-- [ ] usuario nuevo tiene exactamente dos categorías: "Pago Ingresado" INGRESO y "Pago Realizado" GASTO, ambas `es_defecto` — validates AC-02
-- [ ] lectura no autorizada: A consulta la cuenta, las categorías y los movimientos de B por sus ids y recibe 0 filas en cada consulta — validates AC-27
-- [ ] escritura rechazada: A intenta `insert` en `bat_cuentas`, `update` de su propio `saldo` y `delete` de su categoría "Pago Ingresado"; las tres operaciones son rechazadas y los datos no cambian
-- [ ] configuración faltante: `ObtenerConfiguracionPruebas()` devuelve `null` sin las variables, y las pruebas quedan marcadas como salteadas
+- [ ] `test_cuenta_inicial` — usuario nuevo tiene una cuenta "Mi Cuenta", moneda "USD" y saldo "0" leído como texto — validates AC-01
+- [ ] `test_categorias_por_defecto` — usuario nuevo tiene exactamente dos categorías: "Pago Ingresado" INGRESO y "Pago Realizado" GASTO, ambas `es_defecto` — validates AC-02
+- [ ] `test_lectura_no_autorizada` — lectura no autorizada: A consulta la cuenta, las categorías y los movimientos de B por sus ids y recibe 0 filas en cada consulta — validates AC-27
+- [ ] `test_escritura_rechazada` — escritura rechazada: A intenta `insert` en `bat_cuentas`, `update` de su propio `saldo` y `delete` de su categoría "Pago Ingresado"; las tres operaciones son rechazadas y los datos no cambian
+- [ ] `test_configuracion_faltante` — configuración faltante: `ObtenerConfiguracionPruebas()` devuelve `null` sin las variables, y las pruebas quedan marcadas como salteadas
 
 **Completion criterion**
 La migración corre sin errores sobre un proyecto vacío. Con `.env.local` y la migración aplicada, `npm run test:integracion` pasa; sin `.env.local`, termina salteando las pruebas con el aviso. El SQL revisado nombra cada objeto con el prefijo de `AGENTS.md`.
@@ -143,12 +145,12 @@ Implementa FR-03, FR-04, FR-07 y NFR-02. `AsegurarSesion()` guarda la promesa en
 - Llamada duplicada concurrente a `AsegurarSesion()` — se devuelve la promesa en curso; nunca se crean dos usuarios.
 
 **Required tests**
-- [ ] con sesión existente, `AsegurarSesion()` no llama a `IniciarSesionProvisoria()` — validates AC-03
-- [ ] llamada duplicada concurrente: dos `AsegurarSesion()` simultáneas sin sesión llaman una sola vez a `IniciarSesionProvisoria()`
-- [ ] inicio de sesión rechazado: `GuardiaSesion` muestra exactamente "No se pudo iniciar la sesión. Vuelva a intentarlo." con "Aceptar" y sin el texto del error técnico — validates AC-04
-- [ ] error de reintento: tras un primer fallo, "Aceptar" se deshabilita mientras reintenta; si el reintento falla, el mensaje vuelve a mostrarse, y si funciona se muestran los `children` — validates AC-04
-- [ ] `MensajeError` sigue visible a los 10 segundos (temporizadores falsos) y solo llama a `alAceptar` al presionar "Aceptar" — validates AC-04
-- [ ] integración (se saltea sin `.env.local`): un cliente con almacenamiento compartido inicia sesión, se crea un segundo cliente con el mismo almacenamiento y `getSession()` devuelve el mismo usuario, con la misma cuenta y sin categorías por defecto duplicadas — validates AC-03
+- [ ] `test_sesion_existente` — con sesión existente, `AsegurarSesion()` no llama a `IniciarSesionProvisoria()` — validates AC-03
+- [ ] `test_llamada_duplicada_concurrente` — llamada duplicada concurrente: dos `AsegurarSesion()` simultáneas sin sesión llaman una sola vez a `IniciarSesionProvisoria()`
+- [ ] `test_inicio_de_sesion_rechazado` — inicio de sesión rechazado: `GuardiaSesion` muestra exactamente "No se pudo iniciar la sesión. Vuelva a intentarlo." con "Aceptar" y sin el texto del error técnico — validates AC-04
+- [ ] `test_error_de_reintento` — error de reintento: tras un primer fallo, "Aceptar" se deshabilita mientras reintenta; si el reintento falla, el mensaje vuelve a mostrarse, y si funciona se muestran los `children` — validates AC-04
+- [ ] `test_mensaje_sigue_visible` — `MensajeError` sigue visible a los 10 segundos (temporizadores falsos) y solo llama a `alAceptar` al presionar "Aceptar" — validates AC-04
+- [ ] `test_sesion_persistente` — integración (se saltea sin `.env.local`): un cliente con almacenamiento compartido inicia sesión, se crea un segundo cliente con el mismo almacenamiento y `getSession()` devuelve el mismo usuario, con la misma cuenta y sin categorías por defecto duplicadas — validates AC-03
 
 **Completion criterion**
 `npm test` pasa con los tests de `sesion.test.js`, `MensajeError.test.jsx` y `GuardiaSesion.test.jsx`, y `signInAnonymously` aparece en un solo archivo (`grep -r signInAnonymously src` devuelve solo `sesionProvisoria.js`).
@@ -176,11 +178,11 @@ Implementa FR-05 (pantalla) y FR-06. Al montar, `SeccionCuenta` pide en paralelo
 - Cuenta faltante (`.single()` sin filas) o saldo con formato inválido — mismo mensaje; nunca se muestra un saldo inventado ni `USD 0,00` por defecto.
 
 **Required tests**
-- [ ] con la cuenta `{nombre: 'Mi Cuenta', moneda: 'USD', saldo: '0'}` y 0 movimientos, muestra "Mi Cuenta (USD)" y "USD 0,00" — validates AC-01
-- [ ] con 0 movimientos muestra "Aquí verá sus movimientos." y con 3 movimientos no lo muestra — validates AC-22
-- [ ] error de carga: si `ObtenerCuenta` es rechazada, muestra "No se pudo cargar su cuenta. Vuelva a intentarlo." con "Aceptar", y al presionarlo reintenta
-- [ ] cuenta faltante o saldo inválido: si `ObtenerCuenta` devuelve un error de 0 filas o un saldo `"abc"`, muestra el mismo mensaje de error y no muestra un saldo
-- [ ] `ObtenerCuenta` pide `saldo::text` y `ContarMovimientos` usa `head: true` (cliente simulado)
+- [ ] `test_pantalla_cuenta_nueva` — con la cuenta `{nombre: 'Mi Cuenta', moneda: 'USD', saldo: '0'}` y 0 movimientos, muestra "Mi Cuenta (USD)" y "USD 0,00" — validates AC-01
+- [ ] `test_mensaje_sin_movimientos` — con 0 movimientos muestra "Aquí verá sus movimientos." y con 3 movimientos no lo muestra — validates AC-22
+- [ ] `test_error_de_carga` — error de carga: si `ObtenerCuenta` es rechazada, muestra "No se pudo cargar su cuenta. Vuelva a intentarlo." con "Aceptar", y al presionarlo reintenta
+- [ ] `test_cuenta_faltante_o_saldo_invalido` — cuenta faltante o saldo inválido: si `ObtenerCuenta` devuelve un error de 0 filas o un saldo `"abc"`, muestra el mismo mensaje de error y no muestra un saldo
+- [ ] `test_consultas_saldo_texto_y_conteo` — `ObtenerCuenta` pide `saldo::text` y `ContarMovimientos` usa `head: true` (cliente simulado)
 
 **Completion criterion**
 `npm test` pasa con los tests de `SeccionCuenta.test.jsx` y `cuentas.test.js`, y `npm run build` genera el bundle sin errores.
