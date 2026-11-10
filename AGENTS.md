@@ -18,9 +18,13 @@
 npm install
 npm run dev
 npm test
+npm run test:integracion
+npm run lint
 ```
 
-- Requiere `.env.local` (ver `.env.example`) y las migraciones de `supabase/migrations/` ejecutadas en orden.
+<!-- daw:declined FEAT-002 testing what-this-project-is -->
+
+- `npm run dev` y `npm run test:integracion` requieren `.env.local` (ver `.env.example`) y las migraciones de `supabase/migrations/` ejecutadas en orden. `npm test` corre sin `.env.local`.
 - Los tests de `pruebas/` corren contra Supabase y crean usuarios anónimos por corrida, marcados con `es_prueba = true`. Borrarlos con `supabase/scripts/limpiar_usuarios_prueba.sql`. Supabase limita los inicios de sesión anónimos (~30 por hora por IP).
 
 ---
