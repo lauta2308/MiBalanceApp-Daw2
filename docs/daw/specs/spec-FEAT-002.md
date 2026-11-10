@@ -6,13 +6,15 @@
 | PRD | docs/daw/prd/prd-FEAT-002.md |
 | Tier | FEATURE |
 | Date | 2026-11-10 |
-| Spec loops | 0 |
+| Spec loops | 1 |
 | Loops since last human decision | 0 |
 
 ## Summary
 Dos bloques. El primero instala, dentro del proceso de las pruebas unitarias de Vitest (proyecto `unidad`), un bloqueo que rechaza toda conexión a un host externo por TCP, TLS, UDP o XHR síncrono, registra cada intento y hace fallar la prueba que lo provocó. El segundo agrega el workflow de GitHub Actions `.github/workflows/ci.yml`, que en cada pull request instala con `npm ci`, corre `npm run lint` y `npm test` sin secretos, y una prueba unitaria que lee ese archivo como texto y verifica su contrato. No se agregan dependencias de npm.
 
 Decisión del usuario (2026-11-10): la instalación usa `npm ci` y no `npm install`, porque AC-02 exige las versiones fijadas en `package-lock.json`.
+
+Decisión del usuario (2026-11-10), vuelta de VERIFY por F-VER-06: cada prueba requerida se nombra `test_…`, y el título de su `it(...)` en el código empieza con ese mismo identificador. La regla queda escrita en `AGENTS.md` (Code conventions) para los tickets siguientes.
 
 ## Coverage: PRD → blocks
 | Requirement | Covered by |
@@ -69,16 +71,16 @@ Restricciones de lint: `process` se importa de `node:process`, `afterEach` y `af
 - Bloqueo desinstalado por una prueba: error que hace fallar esa prueba.
 
 **Required tests**
-- [ ] `rechaza_conexion_tcp_externa` — `net.connect` a `example.com:443` emite un error `ERR_RED_BLOQUEADA` (rechazado) y queda registrado — validates AC-08
-- [ ] `rechaza_fetch_externo` — `fetch('https://example.com')` es rechazado y queda registrado — validates AC-08
-- [ ] `rechaza_https_externo` — `https.get` a un host externo es rechazado con error — validates AC-08
-- [ ] `rechaza_udp_externo` — `dgram` hacia un host externo es rechazado con error — validates AC-08
-- [ ] `rechaza_xhr_sincrono_externo` — `open` síncrono hacia un host externo es rechazado con error — validates AC-08
-- [ ] `rechaza_host_que_imita_loopback` — `127.0.0.1.ejemplo.com` y `localhost.ejemplo.com` son rechazados como externos — validates AC-08
-- [ ] `permite_loopback` — una conexión a un servidor local en `127.0.0.1` funciona y no registra intentos — validates AC-07
-- [ ] `intento_registrado_marca_error_en_la_prueba` — tras un intento rechazado, `ComprobarIntentosBloqueados()` lanza un error que nombra `host:puerto` y vacía el registro — validates AC-08
-- [ ] `bloqueo_desinstalado_es_error` — si una prueba reemplaza `connect`, `VerificarBloqueoInstalado()` da `false` — validates AC-08
-- [ ] `instalacion_idempotente` — llamar dos veces a `InstalarBloqueoRed()` no duplica parches ni registros — validates AC-08
+- [ ] `test_rechaza_conexion_tcp_externa` — `net.connect` a `example.com:443` emite un error `ERR_RED_BLOQUEADA` (rechazado) y queda registrado — validates AC-08
+- [ ] `test_rechaza_fetch_externo` — `fetch('https://example.com')` es rechazado y queda registrado — validates AC-08
+- [ ] `test_rechaza_https_externo` — `https.get` a un host externo es rechazado con error — validates AC-08
+- [ ] `test_rechaza_udp_externo` — `dgram` hacia un host externo es rechazado con error — validates AC-08
+- [ ] `test_rechaza_xhr_sincrono_externo` — `open` síncrono hacia un host externo es rechazado con error — validates AC-08
+- [ ] `test_rechaza_host_que_imita_loopback` — `127.0.0.1.ejemplo.com` y `localhost.ejemplo.com` son rechazados como externos — validates AC-08
+- [ ] `test_permite_loopback` — una conexión a un servidor local en `127.0.0.1` funciona y no registra intentos — validates AC-07
+- [ ] `test_intento_registrado_marca_error_en_la_prueba` — tras un intento rechazado, `ComprobarIntentosBloqueados()` lanza un error que nombra `host:puerto` y vacía el registro — validates AC-08
+- [ ] `test_bloqueo_desinstalado_es_error` — si una prueba reemplaza `connect`, `VerificarBloqueoInstalado()` da `false` — validates AC-08
+- [ ] `test_instalacion_idempotente` — llamar dos veces a `InstalarBloqueoRed()` no duplica parches ni registros — validates AC-08
 - [ ] Las 7 pruebas unitarias existentes pasan con el bloqueo instalado y sin `.env.local` — validates AC-07
 
 **Completion criterion**
@@ -89,7 +91,8 @@ Las 11 pruebas pasan con `npm test`, `npm run lint` termina sin errores, y `npm 
 **Files**
 - `.github/workflows/ci.yml` (new) — el workflow. El nombre lo pidió el usuario.
 - `src/integracionContinua.test.js` (new) — lee `ci.yml` como texto y verifica su contrato.
-- `AGENTS.md` (modified) — ya contiene, sin commitear, `npm run test:integracion`, `npm run lint` y el marcador `daw:declined` de FEAT-002.
+- `AGENTS.md` (modified) — ya contiene, sin commitear, `npm run test:integracion`, `npm run lint` y el marcador `daw:declined` de FEAT-002. Suma, en Code conventions, la regla de nombres de las pruebas requeridas (`test_…` en la spec y al inicio del título del `it(...)`).
+- `src/bloqueoRedPruebas.test.js` y `src/integracionContinua.test.js` (modified) — el título de cada prueba requerida empieza con su identificador `test_…`.
 
 **Logic**
 Implementa FR-01 a FR-07. Contenido de `ci.yml`:
@@ -122,18 +125,18 @@ Los SHA se obtienen al implementar, de las releases oficiales de cada acción, c
 - `ci.yml` inexistente: la prueba unitaria falla con error de lectura.
 
 **Required tests**
-- [ ] `ci_dispara_en_pull_request` — `on:` contiene `pull_request` — validates AC-01
-- [ ] `ci_rechaza_pull_request_target` — `pull_request_target` está ausente; si aparece, error — validates AC-01
-- [ ] `ci_instala_con_npm_ci` — existe un paso `run: npm ci` y no hay `npm install` — validates AC-02
-- [ ] `ci_corre_lint_y_pruebas_en_orden` — `npm ci` aparece antes que `npm run lint`, y este antes que `npm test` — validates AC-03, AC-04
-- [ ] `ci_sin_continue_on_error_ni_or_true` — un `continue-on-error` o un `|| true` es rechazado, porque ocultaría un error — validates AC-05
-- [ ] `ci_sin_secretos_ni_credenciales` — `secrets.` y `VITE_SUPABASE` están ausentes; si aparecen, error — validates AC-06, AC-07
-- [ ] `ci_sin_pruebas_de_integracion` — `test:integracion` y `--project integracion` son rechazados — validates AC-07
-- [ ] `ci_acciones_fijadas_por_sha` — un `uses:` sin SHA de 40 caracteres es inválido — validates AC-06
-- [ ] `ci_permisos_de_solo_lectura` — `contents: read` y `persist-credentials: false` presentes; `write` rechazado — validates AC-06
-- [ ] `ci_sin_contexto_del_autor_en_run` — `github.event` dentro de un paso `run` es rechazado — validates AC-06
-- [ ] `ci_node_22_y_timeout` — `node-version: 22` y `timeout-minutes` presentes; otra versión es inválida — validates AC-02
-- [ ] `ci_archivo_faltante_es_error` — leer una ruta inexistente lanza error de lectura — validates AC-05
+- [ ] `test_ci_dispara_en_pull_request` — `on:` contiene `pull_request` — validates AC-01
+- [ ] `test_ci_rechaza_pull_request_target` — `pull_request_target` está ausente; si aparece, error — validates AC-01
+- [ ] `test_ci_instala_con_npm_ci` — existe un paso `run: npm ci` y no hay `npm install` — validates AC-02
+- [ ] `test_ci_corre_lint_y_pruebas_en_orden` — `npm ci` aparece antes que `npm run lint`, y este antes que `npm test` — validates AC-03, AC-04
+- [ ] `test_ci_sin_continue_on_error_ni_or_true` — un `continue-on-error` o un `|| true` es rechazado, porque ocultaría un error — validates AC-05
+- [ ] `test_ci_sin_secretos_ni_credenciales` — `secrets.` y `VITE_SUPABASE` están ausentes; si aparecen, error — validates AC-06, AC-07
+- [ ] `test_ci_sin_pruebas_de_integracion` — `test:integracion` y `--project integracion` son rechazados — validates AC-07
+- [ ] `test_ci_acciones_fijadas_por_sha` — un `uses:` sin SHA de 40 caracteres es inválido — validates AC-06
+- [ ] `test_ci_permisos_de_solo_lectura` — `contents: read` y `persist-credentials: false` presentes; `write` rechazado — validates AC-06
+- [ ] `test_ci_sin_contexto_del_autor_en_run` — `github.event` dentro de un paso `run` es rechazado — validates AC-06
+- [ ] `test_ci_node_22_y_timeout` — `node-version: 22` y `timeout-minutes` presentes; otra versión es inválida — validates AC-02
+- [ ] `test_ci_archivo_faltante_es_error` — leer una ruta inexistente lanza error de lectura — validates AC-05
 
 **Completion criterion**
 Las 12 pruebas pasan con `npm test`, `npm run lint` termina sin errores, y la primera ejecución en un pull request real termina en verde.

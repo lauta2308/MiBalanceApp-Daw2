@@ -14,11 +14,11 @@
   ✅ F-SPEC-10: every block documents its error handling
   ✅ F-SPEC-16: every documented error is named by a test
   ✅ F-SPEC-11: dependencies between blocks are declared
-  ⚠️ W-SPEC-02: large block, consider splitting: Block 1 (Bloqueo de red en las pruebas unitarias) (3 files, 734 words), Block 2 (Workflow de integración continua) (3 files, 687 words)
+  ⚠️ W-SPEC-02: large block, consider splitting: Block 1 (Bloqueo de red en las pruebas unitarias) (3 files, 734 words), Block 2 (Workflow de integración continua) (4 files, 727 words)
   ⚠️ W-SPEC-03: schema changes with no rollback or reverse-migration consideration
   👁  F-SPEC-12 (contradicts the PRD) and F-SPEC-13 (terminology diverging from
       the PRD) are MANUAL: judge them and say so explicitly in your report.
-  ✅ F-SPEC-LOOP: 0 loop(s) since a human decided, under the ceiling of 3; 0 in total for this document
+  ✅ F-SPEC-LOOP: 0 loop(s) since a human decided, under the ceiling of 3; 1 in total for this document
 ────────────────────────────────────────────────────────────────
 Total: 13 passed, 0 failed, 2 warnings
 Result: PASSED
