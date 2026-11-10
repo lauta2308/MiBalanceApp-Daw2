@@ -16,7 +16,7 @@
 
 ## Entorno de la corrida
 
-- Corrida sobre una copia del repositorio en el disco de Linux, sincronizada a partir del commit `2008d37` (`src/`, `.github/`, `package.json`, `vite.config.js`, `eslint.config.js`, `index.html`; `diff -rq` sin diferencias). Desde `/mnt/c` Vitest no llega a arrancar porque cargar jsdom desde el disco de Windows tarda más que su espera de 60 s.
+- Corrida sobre una copia del repositorio en el disco de Linux, sincronizada desde el árbol de trabajo posterior a `582ac7b`, con los títulos de las pruebas ya renombrados a `test_…` (`src/`, `.github/`, `package.json`, `vite.config.js`, `eslint.config.js`, `index.html`; `diff -rq` sin diferencias). Desde `/mnt/c` Vitest no llega a arrancar porque cargar jsdom desde el disco de Windows tarda más que su espera de 60 s.
 - Red cortada (`unshare -rn`, solo loopback), sin `.env.local` y sin variables `VITE_SUPABASE_*`, para comprobar AC-07 y AC-08.
 - 9 archivos de prueba: los 7 existentes, `src/bloqueoRedPruebas.test.js` (23 pruebas) y `src/integracionContinua.test.js` (15 pruebas).
 - Statements: 92.42%.

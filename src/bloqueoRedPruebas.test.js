@@ -48,7 +48,7 @@ beforeAll(() => {
 })
 
 describe('bloqueo de red de las pruebas unitarias', () => {
-  it('rechaza_conexion_tcp_externa: net.connect a example.com:443 es rechazado y registrado', async () => {
+  it('test_rechaza_conexion_tcp_externa: net.connect a example.com:443 es rechazado y registrado', async () => {
     const error = await EsperarErrorDeConexion({ host: 'example.com', port: 443 })
 
     expect(error.code).toBe(codigoBloqueo)
@@ -56,7 +56,7 @@ describe('bloqueo de red de las pruebas unitarias', () => {
     ConsumirIntentos()
   })
 
-  it('rechaza_conexion_tcp_externa / rechaza_conexion_externa_con_lookup_propio: un lookup propio no deja pasar un host externo', async () => {
+  it('test_rechaza_conexion_tcp_externa / test_rechaza_conexion_externa_con_lookup_propio: un lookup propio no deja pasar un host externo', async () => {
     let llamadasLookup = 0
     function ResolverHaciaAfuera(_host, _opciones, alTerminar) {
       llamadasLookup += 1
@@ -77,7 +77,7 @@ describe('bloqueo de red de las pruebas unitarias', () => {
     ConsumirIntentos()
   })
 
-  it('rechaza_puerto_texto_no_canonico: un puerto en texto no canónico no se toma como ruta local', async () => {
+  it('test_rechaza_puerto_texto_no_canonico: un puerto en texto no canónico no se toma como ruta local', async () => {
     for (const puertoTexto of [' 443', '0x1bb', '+443', '443.0', '4.43e2']) {
       const error = await new Promise((resolver, rechazar) => {
         const socket = new net.Socket()
@@ -97,7 +97,7 @@ describe('bloqueo de red de las pruebas unitarias', () => {
     }
   })
 
-  it('rechaza_arreglo_no_normalizado: un arreglo sin el símbolo de Node se lee como opciones', async () => {
+  it('test_rechaza_arreglo_no_normalizado: un arreglo sin el símbolo de Node se lee como opciones', async () => {
     const opcionesEnArreglo = [{ host: '127.0.0.1', port: 443 }]
     opcionesEnArreglo.host = 'example.com'
     opcionesEnArreglo.port = 443
@@ -119,7 +119,7 @@ describe('bloqueo de red de las pruebas unitarias', () => {
     ConsumirIntentos()
   })
 
-  it('rechaza_loopback_con_ceros_y_lookup_propio: un loopback escrito con ceros no es IP literal para Node', async () => {
+  it('test_rechaza_loopback_con_ceros_y_lookup_propio: un loopback escrito con ceros no es IP literal para Node', async () => {
     let llamadasLookup = 0
     function ResolverHaciaAfuera(_host, _opciones, alTerminar) {
       llamadasLookup += 1
@@ -136,7 +136,7 @@ describe('bloqueo de red de las pruebas unitarias', () => {
     ConsumirIntentos()
   })
 
-  it('permite_ruta_de_socket_local: una conexión por ruta de socket local funciona y no registra intentos', async () => {
+  it('test_permite_ruta_de_socket_local: una conexión por ruta de socket local funciona y no registra intentos', async () => {
     const directorio = mkdtempSync(join(tmpdir(), 'bloqueo-red-'))
     const ruta = join(directorio, 'servidor.sock')
     const servidor = net.createServer((socket) => socket.end())
@@ -162,7 +162,7 @@ describe('bloqueo de red de las pruebas unitarias', () => {
     }
   })
 
-  it('rechaza_fetch_externo: fetch a https://example.com es rechazado y registrado', async () => {
+  it('test_rechaza_fetch_externo: fetch a https://example.com es rechazado y registrado', async () => {
     let errorObtenido = null
     try {
       await fetch('https://example.com')
@@ -175,7 +175,7 @@ describe('bloqueo de red de las pruebas unitarias', () => {
     ConsumirIntentos()
   })
 
-  it('rechaza_https_externo: https.get a un host externo es rechazado con error', async () => {
+  it('test_rechaza_https_externo: https.get a un host externo es rechazado con error', async () => {
     const error = await new Promise((resolver, rechazar) => {
       const solicitud = https.get('https://example.com/', (respuesta) => {
         respuesta.resume()
@@ -189,7 +189,7 @@ describe('bloqueo de red de las pruebas unitarias', () => {
     ConsumirIntentos()
   })
 
-  it('rechaza_udp_externo: dgram hacia un host externo es rechazado con error', async () => {
+  it('test_rechaza_udp_externo: dgram hacia un host externo es rechazado con error', async () => {
     const socket = dgram.createSocket('udp4')
     try {
       const errorEnvio = await new Promise((resolver) => {
@@ -212,7 +212,7 @@ describe('bloqueo de red de las pruebas unitarias', () => {
     }
   })
 
-  it('rechaza_udp_externo / rechaza_udp_externo_con_lookup_propio: un socket con lookup propio solo acepta IP literal de loopback', async () => {
+  it('test_rechaza_udp_externo / test_rechaza_udp_externo_con_lookup_propio: un socket con lookup propio solo acepta IP literal de loopback', async () => {
     let llamadasLookup = 0
     function ResolverHaciaAfuera(_host, _opciones, alTerminar) {
       llamadasLookup += 1
@@ -243,7 +243,7 @@ describe('bloqueo de red de las pruebas unitarias', () => {
     }
   })
 
-  it('rechaza_udp_externo_con_lookup_propio_que_redirige_una_ip_literal: dgram siempre consulta el lookup', async () => {
+  it('test_rechaza_udp_externo_con_lookup_propio_que_redirige_una_ip_literal: dgram siempre consulta el lookup', async () => {
     // A diferencia de net, dgram pasa por el lookup aun con una IP literal.
     const socket = dgram.createSocket({
       type: 'udp4',
@@ -264,7 +264,7 @@ describe('bloqueo de red de las pruebas unitarias', () => {
     }
   })
 
-  it('mensaje_con_destino_legible: un host omitido se muestra como localhost y sin puerto solo el host', async () => {
+  it('test_mensaje_con_destino_legible: un host omitido se muestra como localhost y sin puerto solo el host', async () => {
     const error = await EsperarErrorDeConexion({
       port: 443,
       lookup: (_host, _opciones, alTerminar) => alTerminar(null, '127.0.0.1', 4),
@@ -287,7 +287,7 @@ describe('bloqueo de red de las pruebas unitarias', () => {
     expect(mensaje).not.toMatch(/null:|:null/)
   })
 
-  it('rechaza_xhr_sincrono_externo: open síncrono hacia un host externo es rechazado con error', () => {
+  it('test_rechaza_xhr_sincrono_externo: open síncrono hacia un host externo es rechazado con error', () => {
     // jsdom convierte el tercer argumento a booleano: undefined y 0 también son síncronos.
     for (const asincrono of [false, undefined, 0]) {
       const solicitud = new XMLHttpRequest()
@@ -304,7 +304,7 @@ describe('bloqueo de red de las pruebas unitarias', () => {
     }
   })
 
-  it('xhr_con_url_ilegible_no_registra_la_url: se registra un marcador fijo, nunca la URL', () => {
+  it('test_xhr_con_url_ilegible_no_registra_la_url: se registra un marcador fijo, nunca la URL', () => {
     const urlIlegible = 'http://[ilegible/secreto?clave=123'
     const solicitud = new XMLHttpRequest()
     let errorObtenido = null
@@ -322,7 +322,7 @@ describe('bloqueo de red de las pruebas unitarias', () => {
     ConsumirIntentos()
   })
 
-  it('reinstalacion_xhr_envuelve_el_original: reinstalar no envuelve el open que dejó una prueba', () => {
+  it('test_reinstalacion_xhr_envuelve_el_original: reinstalar no envuelve el open que dejó una prueba', () => {
     const aperturaAntes = XMLHttpRequest.prototype.open
     let llamadasFalsas = 0
     XMLHttpRequest.prototype.open = function AbrirFalso() {
@@ -337,7 +337,7 @@ describe('bloqueo de red de las pruebas unitarias', () => {
     expect(llamadasFalsas).toBe(0)
   })
 
-  it('permite_udp_por_socket_conectado_a_loopback: send sin destino usa la dirección conectada', async () => {
+  it('test_permite_udp_por_socket_conectado_a_loopback: send sin destino usa la dirección conectada', async () => {
     const servidor = dgram.createSocket('udp4')
     const cliente = dgram.createSocket('udp4')
     try {
@@ -369,7 +369,7 @@ describe('bloqueo de red de las pruebas unitarias', () => {
     }
   })
 
-  it('udp_con_conexion_en_curso_no_registra_intentos: mientras conecta a loopback, decide Node y no el bloqueo', async () => {
+  it('test_udp_con_conexion_en_curso_no_registra_intentos: mientras conecta a loopback, decide Node y no el bloqueo', async () => {
     const servidor = dgram.createSocket('udp4')
     const cliente = dgram.createSocket('udp4')
     try {
@@ -399,7 +399,7 @@ describe('bloqueo de red de las pruebas unitarias', () => {
     }
   })
 
-  it('rechaza_host_que_imita_loopback: 127.0.0.1.ejemplo.com y localhost.ejemplo.com son externos', async () => {
+  it('test_rechaza_host_que_imita_loopback: 127.0.0.1.ejemplo.com y localhost.ejemplo.com son externos', async () => {
     expect(EsHostLocal('127.0.0.1.ejemplo.com')).toBe(false)
     expect(EsHostLocal('localhost.ejemplo.com')).toBe(false)
 
@@ -413,7 +413,7 @@ describe('bloqueo de red de las pruebas unitarias', () => {
     ConsumirIntentos()
   })
 
-  it('permite_loopback: una conexión a un servidor local en 127.0.0.1 funciona y no registra intentos', async () => {
+  it('test_permite_loopback: una conexión a un servidor local en 127.0.0.1 funciona y no registra intentos', async () => {
     expect(VerificarBloqueoInstalado()).toBe(true)
     for (const host of ['localhost', '127.0.0.1', '127.1.2.3', '::1', '::ffff:127.0.0.1', '', undefined]) {
       expect(EsHostLocal(host)).toBe(true)
@@ -437,7 +437,7 @@ describe('bloqueo de red de las pruebas unitarias', () => {
     }
   })
 
-  it('intento_registrado_marca_error_en_la_prueba: ComprobarIntentosBloqueados nombra host:puerto y vacía el registro', async () => {
+  it('test_intento_registrado_marca_error_en_la_prueba: ComprobarIntentosBloqueados nombra host:puerto y vacía el registro', async () => {
     await EsperarErrorDeConexion({ host: 'example.com', port: 8443 })
 
     expect(ObtenerIntentosBloqueados()).toHaveLength(1)
@@ -451,7 +451,7 @@ describe('bloqueo de red de las pruebas unitarias', () => {
     expect(() => ComprobarIntentosBloqueados()).not.toThrow()
   })
 
-  it('bloqueo_desinstalado_es_error: si una prueba reemplaza connect, VerificarBloqueoInstalado da false', () => {
+  it('test_bloqueo_desinstalado_es_error: si una prueba reemplaza connect, VerificarBloqueoInstalado da false', () => {
     const conexionBloqueada = net.Socket.prototype.connect
     expect(VerificarBloqueoInstalado()).toBe(true)
     try {
@@ -474,7 +474,7 @@ describe('bloqueo de red de las pruebas unitarias', () => {
     expect(VerificarBloqueoInstalado()).toBe(true)
   })
 
-  it('bloqueo_desinstalado_falla_con_sus_intentos: el error nombra los intentos y vacía el registro', async () => {
+  it('test_bloqueo_desinstalado_falla_con_sus_intentos: el error nombra los intentos y vacía el registro', async () => {
     await EsperarErrorDeConexion({ host: 'example.com', port: 443 })
     net.Socket.prototype.connect = function ConectarSinBloqueo() {
       return this
@@ -495,7 +495,7 @@ describe('bloqueo de red de las pruebas unitarias', () => {
     expect(VerificarBloqueoInstalado()).toBe(true)
   })
 
-  it('instalacion_idempotente: instalar dos veces no duplica parches ni registros', async () => {
+  it('test_instalacion_idempotente: instalar dos veces no duplica parches ni registros', async () => {
     const conexionAntes = net.Socket.prototype.connect
     const envioAntes = dgram.Socket.prototype.send
     const conexionUdpAntes = dgram.Socket.prototype.connect

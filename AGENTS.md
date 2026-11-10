@@ -57,6 +57,7 @@ Mayúsculas en la interfaz:
 - Clases CSS: kebab-case en español (`lista-movimientos`, `mensaje-error`).
 - Variables y parámetros: camelCase en español. Ej.: `saldoActual`, `idCategoria`. Los identificadores llevan `id` al inicio.
 - Archivos: los de componentes, igual que el componente (`FormularioMovimiento.jsx`); el resto, en camelCase (`clienteSupabase.js`, `movimientos.test.js`).
+- Pruebas: el título de cada `it(...)` empieza con un identificador `test_<nombre_en_snake_case>`. Es obligatorio en las pruebas requeridas de una spec, que se nombran igual en la spec y en el código, porque el validador de VERIFY solo reconoce los nombres con ese prefijo. Ej.: `it('test_permite_loopback: ...')`.
 
 ### Base de datos (PostgreSQL / Supabase)
 

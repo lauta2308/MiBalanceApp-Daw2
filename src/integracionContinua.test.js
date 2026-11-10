@@ -220,20 +220,20 @@ function Reemplazar(buscado, reemplazo) {
 }
 
 describe('integración continua', () => {
-  it('ci_dispara_en_pull_request: on contiene pull_request', () => {
+  it('test_ci_dispara_en_pull_request: on contiene pull_request', () => {
     expect(() => VerificarDisparoPullRequest(LeerCi())).not.toThrow()
     expect(() => VerificarDisparoPullRequest(ciDeEjemploValido)).not.toThrow()
     expect(() => VerificarDisparoPullRequest(Reemplazar('on: pull_request', 'on: push'))).toThrow(/pull_request/)
   })
 
-  it('ci_rechaza_pull_request_target: pull_request_target está ausente', () => {
+  it('test_ci_rechaza_pull_request_target: pull_request_target está ausente', () => {
     expect(() => VerificarSinPullRequestTarget(LeerCi())).not.toThrow()
     expect(() =>
       VerificarSinPullRequestTarget(Reemplazar('on: pull_request', 'on: pull_request_target')),
     ).toThrow(/pull_request_target/)
   })
 
-  it('ci_instala_con_npm_ci: hay un paso npm ci y no hay npm install', () => {
+  it('test_ci_instala_con_npm_ci: hay un paso npm ci y no hay npm install', () => {
     expect(() => VerificarInstalacionConNpmCi(LeerCi())).not.toThrow()
     expect(() => VerificarInstalacionConNpmCi(Reemplazar('run: npm ci', 'run: npm install'))).toThrow()
     expect(() =>
@@ -241,7 +241,7 @@ describe('integración continua', () => {
     ).toThrow(/npm install/)
   })
 
-  it('ci_corre_lint_y_pruebas_en_orden: npm ci, luego npm run lint, luego npm test', () => {
+  it('test_ci_corre_lint_y_pruebas_en_orden: npm ci, luego npm run lint, luego npm test', () => {
     expect(() => VerificarOrdenDeComandos(LeerCi())).not.toThrow()
     const desordenado = ciDeEjemploValido
       .replace('run: npm run lint', 'run: TEMPORAL')
@@ -251,7 +251,7 @@ describe('integración continua', () => {
     expect(() => VerificarOrdenDeComandos(Reemplazar('        run: npm test\n', ''))).toThrow(/Falta/)
   })
 
-  it('ci_sin_continue_on_error_ni_or_true: se rechaza lo que oculta un error', () => {
+  it('test_ci_sin_continue_on_error_ni_or_true: se rechaza lo que oculta un error', () => {
     expect(() => VerificarSinOcultarErrores(LeerCi())).not.toThrow()
     expect(() =>
       VerificarSinOcultarErrores(
@@ -263,7 +263,7 @@ describe('integración continua', () => {
     )
   })
 
-  it('ci_sin_secretos_ni_credenciales: secrets. y VITE_SUPABASE están ausentes', () => {
+  it('test_ci_sin_secretos_ni_credenciales: secrets. y VITE_SUPABASE están ausentes', () => {
     expect(() => VerificarSinSecretos(LeerCi())).not.toThrow()
     expect(() =>
       VerificarSinSecretos(
@@ -275,7 +275,7 @@ describe('integración continua', () => {
     ).toThrow(/VITE_SUPABASE/)
   })
 
-  it('ci_sin_pruebas_de_integracion: test:integracion, --project integracion y vitest sin --project unidad son rechazados', () => {
+  it('test_ci_sin_pruebas_de_integracion: test:integracion, --project integracion y vitest sin --project unidad son rechazados', () => {
     expect(() => VerificarSinPruebasDeIntegracion(LeerCi())).not.toThrow()
     expect(() =>
       VerificarSinPruebasDeIntegracion(Reemplazar('run: npm test', 'run: npm run test:integracion')),
@@ -294,7 +294,7 @@ describe('integración continua', () => {
     ).not.toThrow()
   })
 
-  it('npm_test_corre_solo_unidad: scripts.test de package.json corre solo el proyecto unidad', () => {
+  it('test_npm_test_corre_solo_unidad: scripts.test de package.json corre solo el proyecto unidad', () => {
     expect(() => VerificarScriptTestSoloUnidad(LeerPaquete())).not.toThrow()
     expect.soft(() => VerificarScriptTestSoloUnidad({ scripts: { test: 'vitest run' } })).toThrow(
       /--project unidad/,
@@ -305,7 +305,7 @@ describe('integración continua', () => {
     expect.soft(() => VerificarScriptTestSoloUnidad({ scripts: {} })).toThrow(/scripts.test/)
   })
 
-  it('ci_cancela_ejecuciones_anteriores: concurrency con cancel-in-progress: true', () => {
+  it('test_ci_cancela_ejecuciones_anteriores: concurrency con cancel-in-progress: true', () => {
     expect(() => VerificarCancelacionDeEjecuciones(LeerCi())).not.toThrow()
     expect.soft(() =>
       VerificarCancelacionDeEjecuciones(Reemplazar('  cancel-in-progress: true', '  cancel-in-progress: false')),
@@ -325,7 +325,7 @@ describe('integración continua', () => {
     ).toThrow(/group/)
   })
 
-  it('ci_corre_en_runner_de_github: runs-on ubuntu-latest y sin self-hosted', () => {
+  it('test_ci_corre_en_runner_de_github: runs-on ubuntu-latest y sin self-hosted', () => {
     expect(() => VerificarRunnerDeGithub(LeerCi())).not.toThrow()
     expect.soft(() =>
       VerificarRunnerDeGithub(Reemplazar('runs-on: ubuntu-latest', 'runs-on: self-hosted')),
@@ -341,7 +341,7 @@ describe('integración continua', () => {
     )
   })
 
-  it('ci_acciones_fijadas_por_sha: un uses sin SHA de 40 caracteres es inválido', () => {
+  it('test_ci_acciones_fijadas_por_sha: un uses sin SHA de 40 caracteres es inválido', () => {
     expect(() => VerificarAccionesPorSha(LeerCi())).not.toThrow()
     expect(() =>
       VerificarAccionesPorSha(Reemplazar(`actions/checkout@${'a'.repeat(40)} # v1.0.0`, 'actions/checkout@v4')),
@@ -351,7 +351,7 @@ describe('integración continua', () => {
     ).toThrow(/SHA/)
   })
 
-  it('ci_permisos_de_solo_lectura: contents: read y persist-credentials: false; write rechazado', () => {
+  it('test_ci_permisos_de_solo_lectura: contents: read y persist-credentials: false; write rechazado', () => {
     expect(() => VerificarPermisosDeSoloLectura(LeerCi())).not.toThrow()
     expect(() =>
       VerificarPermisosDeSoloLectura(Reemplazar('  contents: read', '  contents: write')),
@@ -366,7 +366,7 @@ describe('integración continua', () => {
     ).toThrow(/persist-credentials/)
   })
 
-  it('ci_sin_contexto_del_autor_en_run: github.event, github.head_ref o cualquier ${{ }} en un run es rechazado', () => {
+  it('test_ci_sin_contexto_del_autor_en_run: github.event, github.head_ref o cualquier ${{ }} en un run es rechazado', () => {
     expect(() => VerificarSinContextoDelAutorEnRun(LeerCi())).not.toThrow()
     expect(() =>
       VerificarSinContextoDelAutorEnRun(
@@ -391,7 +391,7 @@ describe('integración continua', () => {
     ).toThrow(/github.head_ref/)
   })
 
-  it('ci_node_22_y_timeout: node-version 22 y timeout-minutes presentes; otra versión es inválida', () => {
+  it('test_ci_node_22_y_timeout: node-version 22 y timeout-minutes presentes; otra versión es inválida', () => {
     expect(() => VerificarNode22YTimeout(LeerCi())).not.toThrow()
     expect(() => VerificarNode22YTimeout(Reemplazar('node-version: 22', 'node-version: 20'))).toThrow(/20/)
     expect(() => VerificarNode22YTimeout(Reemplazar('node-version: 22', "node-version: '22.12'"))).toThrow(
@@ -400,7 +400,7 @@ describe('integración continua', () => {
     expect(() => VerificarNode22YTimeout(Reemplazar('    timeout-minutes: 15\n', ''))).toThrow(/timeout-minutes/)
   })
 
-  it('ci_archivo_faltante_es_error: leer una ruta inexistente lanza error de lectura', () => {
+  it('test_ci_archivo_faltante_es_error: leer una ruta inexistente lanza error de lectura', () => {
     const rutaInexistente = new URL(rutaRelativaInexistente, import.meta.url)
     expect(() => readFileSync(rutaInexistente, 'utf8')).toThrow(/ENOENT/)
     expect(() => LeerCi()).not.toThrow()
