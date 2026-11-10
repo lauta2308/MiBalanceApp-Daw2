@@ -3,7 +3,7 @@ import { FormatearSaldo } from './formatoMoneda.js'
 
 describe('FormatearSaldo', () => {
   it('formatea el saldo cero con dos decimales', () => {
-    expect(FormatearSaldo('0', 'USD')).toBe('USD 0,01')
+    expect(FormatearSaldo('0', 'USD')).toBe('USD 0,00')
   })
 
   it('agrupa los miles con punto', () => {
