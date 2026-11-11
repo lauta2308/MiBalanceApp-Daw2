@@ -12,3 +12,10 @@ Formato: decisión — quién la aprobó — fecha — bloque.
 - El script guarda cada resultado en la tabla temporal `resultados_pruebas` y termina con un `select`, porque el SQL Editor de Supabase puede no mostrar los `raise notice` — orquestador (modo minimal) — 2026-11-11 — Block 1
 - La llamada al RPC en las pruebas vive en un solo ayudante, `AgregarMovimiento`, en `pruebas/ayudantesPruebas.js` — orquestador (modo minimal) — 2026-11-11 — Block 1
 - Pendiente para FEAT-001d: un monto de 10^12 o más pasa la validación de `BASP_AGREGAR_MOVIMIENTO` y falla en el insert con 22003 (mensaje técnico de PostgreSQL) en lugar de 22023. No deja estado parcial. El tope del monto es de FEAT-001d y no se inventa aquí — orquestador (modo minimal), a confirmar por el usuario — 2026-11-11 — Block 1
+- `MENSAJE_MONTO_INVALIDO` vale 'El monto debe ser mayor a 0.', literal de FR-07 / AC-18 — orquestador (modo minimal) — 2026-11-11 — Block 2
+- `AgregarIngreso` descarta el id que devuelve la RPC y solo lanza el error si lo hay — orquestador (modo minimal) — 2026-11-11 — Block 2
+- `ValidarMonto` devuelve `null` también si recibe algo que no es texto, sin lanzar — orquestador (modo minimal) — 2026-11-11 — Block 2
+- Las constantes de `formatoMoneda.js` pasan a MAYÚSCULAS (`FORMATO_SALDO`, `FORMATO_CODIGO_MONEDA`, `POSICIONES_SEPARADOR_MILES`), según la decisión de FEAT-001a — orquestador (modo minimal) — 2026-11-11 — Block 2
+- `test_fecha_hoy_local` fija `TZ=America/Argentina/Buenos_Aires` y controla `getTimezoneOffset()`, para detectar una regresión a UTC aunque la suite corra en UTC — orquestador (modo minimal) — 2026-11-11 — Block 2
+- Cada `it(...)` nuevo lleva el prefijo `test_`, también las pruebas extra a las requeridas — orquestador (modo minimal) — 2026-11-11 — Block 2
+- La prueba de FEAT-001a `sesion.test.js` > "crea un solo usuario anónimo…" supera a veces los 5000 ms con la suite completa en WSL sobre /mnt/c (2 de 3 corridas); se corrige en el cierre de CODE precargando el import, sin aflojar aserciones — orquestador (modo minimal) — 2026-11-11 — Block 2
