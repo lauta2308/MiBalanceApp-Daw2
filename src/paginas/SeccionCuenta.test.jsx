@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter, useLocation } from 'react-router'
 
 const { ObtenerCuentaSimulado, ContarMovimientosSimulado, AsegurarSesionSimulado } = vi.hoisted(() => ({
   ObtenerCuentaSimulado: vi.fn(),
@@ -12,6 +13,17 @@ const { ObtenerCuentaSimulado, ContarMovimientosSimulado, AsegurarSesionSimulado
 vi.mock('../servicios/cuentas.js', () => ({
   ObtenerCuenta: ObtenerCuentaSimulado,
   ContarMovimientos: ContarMovimientosSimulado,
+}))
+// clienteSupabase.js lanza al importarse sin variables VITE_* (el CI corre sin ellas):
+// App importa el formulario, que importa estos servicios.
+vi.mock('../servicios/movimientos.js', () => ({
+  AgregarIngreso: vi.fn(),
+  ObtenerMovimientos: vi.fn(),
+}))
+vi.mock('../servicios/categorias.js', () => ({
+  ObtenerCategoriasIngreso: vi.fn().mockResolvedValue([
+    { id: 'id-pago-ingresado', nombre: 'Pago Ingresado', es_defecto: true },
+  ]),
 }))
 vi.mock('../autenticacion/sesion.js', () => ({
   AsegurarSesion: AsegurarSesionSimulado,
@@ -254,12 +266,26 @@ describe('SeccionCuenta', () => {
   })
 })
 
+function SondaUbicacion() {
+  const ubicacion = useLocation()
+  return <p data-testid="sonda-ubicacion">{ubicacion.pathname}</p>
+}
+
+function RenderizarApp(ruta = '/') {
+  return render(
+    <MemoryRouter initialEntries={[ruta]}>
+      <App />
+      <SondaUbicacion />
+    </MemoryRouter>,
+  )
+}
+
 describe('App', () => {
   it('AC-01: muestra la sección Cuenta como pantalla inicial recién cuando hay sesión', async () => {
     const sesion = CrearPromesaControlada()
     AsegurarSesionSimulado.mockReturnValue(sesion.promesa)
 
-    render(<App />)
+    RenderizarApp()
 
     expect(screen.getByText('Cargando…')).toBeInTheDocument()
     expect(ObtenerCuentaSimulado).not.toHaveBeenCalled()
@@ -270,5 +296,23 @@ describe('App', () => {
 
     expect(await ObtenerEncabezado('Mi Cuenta (USD)')).toBeInTheDocument()
     expect(screen.getByText('USD 0,00')).toBeInTheDocument()
+  })
+
+  it('test_ruta_desconocida_redirige: en "/otra" muestra la sección Cuenta y reemplaza la ruta por "/"', async () => {
+    AsegurarSesionSimulado.mockResolvedValue({ user: { id: 'usuario' } })
+
+    RenderizarApp('/otra')
+
+    expect(await ObtenerEncabezado('Mi Cuenta (USD)')).toBeInTheDocument()
+    expect(screen.getByTestId('sonda-ubicacion')).toHaveTextContent(/^\/$/)
+  })
+
+  it('test_ruta_formulario_ingreso: en "/ingresos/nuevo" muestra el formulario "Añadir Ingreso" y no la sección Cuenta', async () => {
+    AsegurarSesionSimulado.mockResolvedValue({ user: { id: 'usuario' } })
+
+    RenderizarApp('/ingresos/nuevo')
+
+    expect(await ObtenerEncabezado('Añadir Ingreso')).toBeInTheDocument()
+    expect(ObtenerCuentaSimulado).not.toHaveBeenCalled()
   })
 })

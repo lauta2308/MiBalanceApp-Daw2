@@ -19,3 +19,11 @@ Formato: decisión — quién la aprobó — fecha — bloque.
 - `test_fecha_hoy_local` fija `TZ=America/Argentina/Buenos_Aires` y controla `getTimezoneOffset()`, para detectar una regresión a UTC aunque la suite corra en UTC — orquestador (modo minimal) — 2026-11-11 — Block 2
 - Cada `it(...)` nuevo lleva el prefijo `test_`, también las pruebas extra a las requeridas — orquestador (modo minimal) — 2026-11-11 — Block 2
 - La prueba de FEAT-001a `sesion.test.js` > "crea un solo usuario anónimo…" supera a veces los 5000 ms con la suite completa en WSL sobre /mnt/c (2 de 3 corridas); se corrige en el cierre de CODE precargando el import, sin aflojar aserciones — orquestador (modo minimal) — 2026-11-11 — Block 2
+- `react-router` 8.5.1, última estable según `npm view` — orquestador (modo minimal) — 2026-11-11 — Block 3
+- La categoría preseleccionada sale de `es_defecto`, no de la posición en la lista — orquestador (modo minimal) — 2026-11-11 — Block 3
+- Los mensajes de validación y de error del alta se muestran sobre el formulario, que sigue montado con los datos cargados — orquestador (modo minimal) — 2026-11-11 — Block 3
+- Durante el reintento de carga de categorías "Aceptar" queda deshabilitado y una ref evita la carga doble de `StrictMode`, igual que en `SeccionCuenta` — orquestador (modo minimal) — 2026-11-11 — Block 3
+- La fecha del formulario se calcula una sola vez al montar (`useState(() => ObtenerFechaHoy())`) — orquestador (modo minimal) — 2026-11-11 — Block 3
+- La categoría elegida es `null` hasta que el usuario cambia el `select` y mientras tanto se usa la por defecto, para cumplir `react-hooks/set-state-in-effect` — orquestador (modo minimal) — 2026-11-11 — Block 3
+- La función que devuelve `useNavigate()` se llama `Navegar` (PascalCase), por analogía con el setter de `useState` — orquestador (modo minimal) — 2026-11-11 — Block 3
+- `test_ruta_desconocida_redirige` comprueba además que la ruta queda en "/", porque solo mirar la sección Cuenta pasaba antes de implementar — orquestador (modo minimal) — 2026-11-11 — Block 3

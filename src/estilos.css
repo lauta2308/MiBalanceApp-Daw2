@@ -20,3 +20,65 @@ body {
   outline: 2px solid #1a56db;
   outline-offset: 2px;
 }
+
+.formulario-movimiento {
+  max-width: 30rem;
+}
+
+.encabezado-formulario {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.boton-volver {
+  font-size: 1.5rem;
+  line-height: 1;
+  padding: 0.25rem 0.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.campo-formulario {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-block-end: 1rem;
+}
+
+.campo-formulario input,
+.campo-formulario select {
+  font: inherit;
+  padding: 0.5rem;
+  border: 1px solid #6b7280;
+  border-radius: 0.25rem;
+}
+
+.campo-formulario input[readonly] {
+  background-color: #f3f4f6;
+}
+
+.acciones-formulario {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.acciones-formulario button {
+  font: inherit;
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+.boton-principal {
+  color: #fff;
+  background-color: #1a56db;
+  border: 1px solid #1a56db;
+}
+
+.boton-secundario {
+  color: #1f2937;
+  background-color: #fff;
+  border: 1px solid #6b7280;
+}
