@@ -1,5 +1,6 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
+  AgregarMovimiento,
   CrearUsuarioPrueba,
   ObtenerConfiguracionPruebas,
   ObtenerVariablesFaltantesPruebas,
@@ -143,15 +144,29 @@ describe.skipIf(!configuracion)(NOMBRE_SUITE_SUPABASE, () => {
     ])
   })
 
-  it('AC-27: A recibe 0 filas al consultar por sus ids la cuenta, las categorías y los movimientos de B', async () => {
+  it('test_lectura_no_autorizada: B registra un ingreso real y A recibe 0 filas al consultar por sus ids la cuenta, las categorías y ese movimiento de B (AC-27)', async () => {
     const clienteA = usuarioA.cliente
+    const clienteB = usuarioB.cliente
     const idsCategoriasB = categoriasB.map(({ id }) => id)
+    const pagoIngresadoB = categoriasB.find(({ nombre }) => nombre === 'Pago Ingresado')
 
     expect(idsCategoriasB).toHaveLength(2)
 
+    const altaB = await AgregarMovimiento(clienteB, {
+      tipo: 'INGRESO',
+      monto: '250',
+      idCategoria: pagoIngresadoB.id,
+    })
+    expect(altaB.error).toBeNull()
+    const idMovimientoB = altaB.data
+
+    const lecturaPropiaB = await clienteB.from('bat_movimientos').select('id').eq('id', idMovimientoB)
+    expect(lecturaPropiaB.error).toBeNull()
+    expect(lecturaPropiaB.data).toEqual([{ id: idMovimientoB }])
+
     const consultaCuenta = await clienteA.from('bat_cuentas').select('id').eq('id', cuentaB.id)
     const consultaCategorias = await clienteA.from('bat_categorias').select('id').in('id', idsCategoriasB)
-    const consultaMovimientos = await clienteA.from('bat_movimientos').select('id').eq('id_cuenta', cuentaB.id)
+    const consultaMovimientos = await clienteA.from('bat_movimientos').select('id').eq('id', idMovimientoB)
 
     for (const consulta of [consultaCuenta, consultaCategorias, consultaMovimientos]) {
       expect(consulta.error).toBeNull()

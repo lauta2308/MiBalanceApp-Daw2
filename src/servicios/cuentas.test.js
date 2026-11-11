@@ -8,11 +8,10 @@ const { fromSimulado, selectSimulado, singleSimulado } = vi.hoisted(() => ({
 
 vi.mock('./clienteSupabase.js', () => ({ clienteSupabase: { from: fromSimulado } }))
 
-import { ContarMovimientos, ObtenerCuenta } from './cuentas.js'
+import { ObtenerCuenta } from './cuentas.js'
 
 const CUENTA = { id: 'id-cuenta', nombre: 'Mi Cuenta', moneda: 'USD', saldo: '0' }
 const ERROR_SIN_FILAS = { code: 'PGRST116', message: 'JSON object requested, multiple (or no) rows returned' }
-const ERROR_SERVIDOR = { code: '500', message: 'Error interno' }
 
 beforeEach(() => {
   fromSimulado.mockReset()
@@ -53,41 +52,5 @@ describe('ObtenerCuenta', () => {
     singleSimulado.mockRejectedValue(errorRed)
 
     await expect(ObtenerCuenta()).rejects.toBe(errorRed)
-  })
-})
-
-describe('ContarMovimientos', () => {
-  it('cuenta con head: true y count exact, sin traer filas', async () => {
-    selectSimulado.mockResolvedValue({ count: 0, data: null, error: null })
-
-    await ContarMovimientos()
-
-    expect(fromSimulado).toHaveBeenCalledWith('bat_movimientos')
-    expect(selectSimulado).toHaveBeenCalledWith('id', { count: 'exact', head: true })
-  })
-
-  it.each([0, 3])('devuelve el conteo %i', async (cantidad) => {
-    selectSimulado.mockResolvedValue({ count: cantidad, data: null, error: null })
-
-    await expect(ContarMovimientos()).resolves.toBe(cantidad)
-  })
-
-  it('lanza el error que devuelve supabase-js', async () => {
-    selectSimulado.mockResolvedValue({ count: null, data: null, error: ERROR_SERVIDOR })
-
-    await expect(ContarMovimientos()).rejects.toBe(ERROR_SERVIDOR)
-  })
-
-  it('lanza un error si la respuesta no trae conteo', async () => {
-    selectSimulado.mockResolvedValue({ count: null, data: null, error: null })
-
-    await expect(ContarMovimientos()).rejects.toThrow('No se obtuvo el conteo de movimientos')
-  })
-
-  it('propaga el rechazo de la consulta', async () => {
-    const errorRed = new Error('Failed to fetch')
-    selectSimulado.mockRejectedValue(errorRed)
-
-    await expect(ContarMovimientos()).rejects.toBe(errorRed)
   })
 })

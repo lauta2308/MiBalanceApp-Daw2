@@ -20,3 +20,128 @@ body {
   outline: 2px solid #1a56db;
   outline-offset: 2px;
 }
+
+.formulario-movimiento {
+  max-width: 30rem;
+}
+
+.encabezado-formulario {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.boton-volver {
+  font-size: 1.5rem;
+  line-height: 1;
+  padding: 0.25rem 0.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.campo-formulario {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-block-end: 1rem;
+}
+
+.campo-formulario input,
+.campo-formulario select {
+  font: inherit;
+  padding: 0.5rem;
+  border: 1px solid #6b7280;
+  border-radius: 0.25rem;
+}
+
+.campo-formulario input[readonly] {
+  background-color: #f3f4f6;
+}
+
+.acciones-formulario {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.acciones-formulario button {
+  font: inherit;
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+.boton-principal {
+  color: #fff;
+  background-color: #1a56db;
+  border: 1px solid #1a56db;
+}
+
+.boton-secundario {
+  color: #1f2937;
+  background-color: #fff;
+  border: 1px solid #6b7280;
+}
+
+.seccion-cuenta .boton-principal {
+  font: inherit;
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+.saldo-cuenta {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.mensaje-exito {
+  padding: 0.75rem 1rem;
+  color: #03543f;
+  background-color: #def7ec;
+  border: 1px solid #0e9f6e;
+  border-radius: 0.25rem;
+}
+
+/* Vacía queda montada para que el lector de pantalla anuncie el texto cuando llegue; no ocupa lugar. */
+.mensaje-exito:empty {
+  padding: 0;
+  border: 0;
+}
+
+.lista-movimientos {
+  margin-block-start: 1.5rem;
+}
+
+.grupo-movimientos h2 {
+  font-size: 1rem;
+  margin-block: 1rem 0.5rem;
+  color: #4b5563;
+}
+
+.grupo-movimientos ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.movimiento {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-block: 0.5rem;
+  border-block-end: 1px solid #e5e7eb;
+}
+
+.monto-movimiento {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.monto-ingreso {
+  color: #046c4e;
+}
+
+.monto-gasto {
+  color: #c81e1e;
+}

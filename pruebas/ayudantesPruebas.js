@@ -2,6 +2,8 @@ import { createClient } from '@supabase/supabase-js'
 
 const VARIABLES_REQUERIDAS = ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY']
 
+export const FECHA_MOVIMIENTO_PRUEBA = '2026-11-11'
+
 export function CrearAlmacenamientoEnMemoria() {
   const datos = new Map()
 
@@ -55,4 +57,14 @@ export async function CrearUsuarioPrueba() {
   }
 
   return { cliente, usuario: data.user }
+}
+
+// Única llamada a basp_agregar_movimiento de las pruebas: si cambia la firma, cambia solo acá.
+export function AgregarMovimiento(cliente, { tipo, monto, fecha = FECHA_MOVIMIENTO_PRUEBA, idCategoria }) {
+  return cliente.rpc('basp_agregar_movimiento', {
+    p_tipo: tipo,
+    p_monto: monto,
+    p_fecha: fecha,
+    p_id_categoria: idCategoria,
+  })
 }
