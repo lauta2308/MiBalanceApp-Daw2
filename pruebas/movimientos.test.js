@@ -212,3 +212,45 @@ describe.skipIf(!configuracion)('Alta de movimientos contra Supabase real', () =
     expect(await LeerSaldo(usuarioA.cliente)).toBe(saldoAntes)
   })
 })
+
+// Suite aparte con su propio usuario: correrla sola (-t) crea un único usuario anónimo.
+describe.skipIf(!configuracion)('Alta de movimientos con fecha elegida contra Supabase real', () => {
+  it('test_alta_fecha_antigua_api: un ingreso de 100 con fecha "1990-03-15" se guarda con esa fecha y el saldo sube en 100', async () => {
+    const { cliente } = await CrearUsuarioPrueba()
+
+    const consultaCategorias = await cliente
+      .from('bat_categorias')
+      .select('id')
+      .eq('tipo', 'INGRESO')
+      .eq('es_defecto', true)
+    expect(consultaCategorias.error).toBeNull()
+    expect(consultaCategorias.data).toHaveLength(1)
+    const idPagoIngresado = consultaCategorias.data[0].id
+
+    const cuentaAntes = await cliente.from('bat_cuentas').select('saldo::text')
+    expect(cuentaAntes.error).toBeNull()
+    expect(cuentaAntes.data).toEqual([{ saldo: '0' }])
+
+    const { data: idMovimiento, error } = await AgregarMovimiento(cliente, {
+      tipo: 'INGRESO',
+      monto: '100',
+      fecha: '1990-03-15',
+      idCategoria: idPagoIngresado,
+    })
+
+    expect(error).toBeNull()
+    expect(typeof idMovimiento).toBe('string')
+
+    const consultaMovimiento = await cliente
+      .from('bat_movimientos')
+      .select('monto::text, fecha')
+      .eq('id', idMovimiento)
+
+    expect(consultaMovimiento.error).toBeNull()
+    expect(consultaMovimiento.data).toEqual([{ monto: '100.00', fecha: '1990-03-15' }])
+
+    const cuentaDespues = await cliente.from('bat_cuentas').select('saldo::text')
+    expect(cuentaDespues.error).toBeNull()
+    expect(cuentaDespues.data).toEqual([{ saldo: '100' }])
+  }, TIEMPO_MAXIMO_RED_MS)
+})

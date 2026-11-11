@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import MensajeError from './MensajeError.jsx'
+import SelectorFecha from './SelectorFecha.jsx'
 import { AgregarIngreso } from '../servicios/movimientos.js'
 import { ObtenerCategoriasIngreso } from '../servicios/categorias.js'
-import { FormatearFecha, ObtenerFechaHoy } from '../utilidades/fechas.js'
+import { ObtenerFechaHoy } from '../utilidades/fechas.js'
 import { MENSAJE_MONTO_INVALIDO, ValidarMonto } from '../utilidades/validacionMonto.js'
 import { MENSAJE_EXITO_INGRESO } from '../utilidades/mensajes.js'
 
@@ -42,13 +43,15 @@ export default function FormularioMovimiento() {
   const idCampoMonto = useId()
   const idCampoCategoria = useId()
   const idCampoFecha = useId()
+  const idEtiquetaFecha = useId()
   const [datos, EstablecerDatos] = useState({ estado: ESTADO_CARGANDO })
   const [reintentando, EstablecerReintentando] = useState(false)
   const [montoTexto, EstablecerMontoTexto] = useState('')
   // null mientras el usuario no elija otra: se usa la categoría por defecto (RF-36).
   const [idCategoriaElegida, EstablecerIdCategoriaElegida] = useState(null)
   const [mensajeError, EstablecerMensajeError] = useState(null)
-  const [fecha] = useState(() => ObtenerFechaHoy())
+  // Hoy preseleccionado (FR-05); se envía tal cual, sin conversiones, como día calendario local.
+  const [fecha, EstablecerFecha] = useState(() => ObtenerFechaHoy())
   const cargaEnCurso = useRef(false)
 
   const IniciarCarga = useCallback(async () => {
@@ -158,8 +161,15 @@ export default function FormularioMovimiento() {
         </div>
 
         <div className="campo-formulario">
-          <label htmlFor={idCampoFecha}>Fecha</label>
-          <input id={idCampoFecha} type="text" value={FormatearFecha(fecha)} readOnly />
+          <label htmlFor={idCampoFecha} id={idEtiquetaFecha}>
+            Fecha
+          </label>
+          <SelectorFecha
+            fecha={fecha}
+            alCambiar={EstablecerFecha}
+            idCampo={idCampoFecha}
+            idEtiqueta={idEtiquetaFecha}
+          />
         </div>
 
         <div className="acciones-formulario">
