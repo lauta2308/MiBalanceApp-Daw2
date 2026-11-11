@@ -14,20 +14,3 @@ export async function ObtenerCuenta() {
 
   return cuenta
 }
-
-export async function ContarMovimientos() {
-  const { count: cantidad, error } = await clienteSupabase
-    .from('bat_movimientos')
-    .select('id', { count: 'exact', head: true })
-
-  if (error) {
-    throw error
-  }
-
-  // Un 404 sin cuerpo a un pedido HEAD llega sin error y sin conteo.
-  if (typeof cantidad !== 'number') {
-    throw new Error('No se obtuvo el conteo de movimientos')
-  }
-
-  return cantidad
-}

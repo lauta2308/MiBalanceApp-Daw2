@@ -27,3 +27,10 @@ Formato: decisión — quién la aprobó — fecha — bloque.
 - La categoría elegida es `null` hasta que el usuario cambia el `select` y mientras tanto se usa la por defecto, para cumplir `react-hooks/set-state-in-effect` — orquestador (modo minimal) — 2026-11-11 — Block 3
 - La función que devuelve `useNavigate()` se llama `Navegar` (PascalCase), por analogía con el setter de `useState` — orquestador (modo minimal) — 2026-11-11 — Block 3
 - `test_ruta_desconocida_redirige` comprueba además que la ruta queda en "/", porque solo mirar la sección Cuenta pasaba antes de implementar — orquestador (modo minimal) — 2026-11-11 — Block 3
+- `ListaMovimientos` recibe los movimientos ya formateados y agrupa solo los consecutivos de la misma fecha, para respetar el orden recibido; la clave de cada grupo es el id de su primer movimiento — orquestador (modo minimal) — 2026-11-11 — Block 4
+- El mensaje de éxito se muestra cuando la cuenta está cargada; si la carga falla, se conserva y aparece tras un reintento exitoso — orquestador (modo minimal) — 2026-11-11 — Block 4
+- El efecto que limpia `location.state` lo hace con cualquier state no nulo, también con un mensaje desconocido — orquestador (modo minimal) — 2026-11-11 — Block 4
+- `MensajeExito` usa `useEffectEvent` para que un `alCerrar` nuevo no reinicie los 3 segundos — orquestador (modo minimal) — 2026-11-11 — Block 4
+- El botón "Añadir Ingreso" es un `<button>` que usa `Navegar`, no un enlace, porque la spec dice "botón" — orquestador (modo minimal) — 2026-11-11 — Block 4
+- El texto "Ingreso registrado con éxito." vive en `src/utilidades/mensajes.js` (`MENSAJE_EXITO_INGRESO`) y lo importan `FormularioMovimiento` y `SeccionCuenta` — orquestador (modo minimal) — 2026-11-11 — Block 4
+- La región `role="status"` de `MensajeExito` queda siempre montada mientras se ve la cuenta y solo cambia su texto, para que los lectores de pantalla la anuncien; vacía no ocupa lugar (`:empty`, sin `display:none`) — orquestador (modo minimal) — 2026-11-11 — Block 4

@@ -5,13 +5,13 @@ import { AgregarIngreso } from '../servicios/movimientos.js'
 import { ObtenerCategoriasIngreso } from '../servicios/categorias.js'
 import { FormatearFecha, ObtenerFechaHoy } from '../utilidades/fechas.js'
 import { MENSAJE_MONTO_INVALIDO, ValidarMonto } from '../utilidades/validacionMonto.js'
+import { MENSAJE_EXITO_INGRESO } from '../utilidades/mensajes.js'
 
 const ESTADO_CARGANDO = 'cargando'
 const ESTADO_CON_DATOS = 'con-datos'
 const ESTADO_CON_ERROR = 'con-error'
 const MENSAJE_ERROR_CARGA = 'No se pudo cargar el formulario. Vuelva a intentarlo.'
 const MENSAJE_ERROR_ALTA = 'No se pudo registrar el ingreso. Vuelva a intentarlo.'
-const MENSAJE_EXITO = 'Ingreso registrado con éxito.'
 const RUTA_CUENTA = '/'
 
 function RegistrarErrorTecnico(error) {
@@ -103,7 +103,7 @@ export default function FormularioMovimiento() {
       return
     }
 
-    Navegar(RUTA_CUENTA, { state: { mensajeExito: MENSAJE_EXITO } })
+    Navegar(RUTA_CUENTA, { state: { mensajeExito: MENSAJE_EXITO_INGRESO } })
   }
 
   if (datos.estado === ESTADO_CARGANDO) {
