@@ -6,8 +6,8 @@
 | PRD | docs/daw/prd/prd-FEAT-001c.md |
 | Tier | FEATURE |
 | Date | 2026-11-11 |
-| Spec loops | 0 |
-| Loops since last human decision | 0 |
+| Spec loops | 1 |
+| Loops since last human decision | 1 |
 
 ## Summary
 FEAT-001b ya dejó un `select` con las categorías de ingreso, la fecha fija de hoy y la lista ordenada por fecha y alta. Este ticket cambia tres cosas:
@@ -110,9 +110,9 @@ Implementa FR-03, FR-04, FR-06 y FR-07 en un componente aislado, y la conversió
 `ConvertirFechaATexto(fecha)` (nueva) es la inversa: arma "AAAA-MM-DD" con `getFullYear()`, `getMonth() + 1` y `getDate()` en hora local. `ObtenerFechaHoy(fecha = new Date())` pasa a devolver `ConvertirFechaATexto(fecha)`, sin cambiar su firma ni su resultado.
 
 `SelectorFecha({ fecha, alCambiar, idCampo, idEtiqueta })`:
-- Muestra un botón con `id={idCampo}` y el texto `FormatearFecha(fecha)`.
+- Muestra un botón con `id={idCampo}` y, dentro, un `span` con `id` propio (`useId()`) y el texto `FormatearFecha(fecha)`.
 - La etiqueta "Fecha" del formulario apunta a ese `id` con `htmlFor` y tiene `id={idEtiqueta}`.
-- El botón lleva `aria-labelledby={`${idEtiqueta} ${idCampo}`}`, así el lector de pantalla anuncia "Fecha 06/11/2026" y no solo "Fecha" (RNF-08).
+- El botón lleva `aria-labelledby` con el id de la etiqueta y el id de ese `span`, así el lector de pantalla anuncia "Fecha 06/11/2026" y no solo "Fecha" (RNF-08). No se referencia el botón a sí mismo: con el `label htmlFor` apuntando al botón, `dom-accessibility-api` (Testing Library) calcula solo "Fecha", y el `span` da el mismo nombre en jsdom y en Chrome (corrección de CODE, Spec loops 1).
 - El botón abre y cierra un `DayPicker` y tiene `aria-expanded`. El calendario se muestra debajo del botón, en la misma página.
 - Configuración del `DayPicker`:
   - `mode="single"` y `required`: elegir de nuevo el día seleccionado no lo deselecciona (FR-04).
