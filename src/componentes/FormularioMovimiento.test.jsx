@@ -3,11 +3,16 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 
-const { AgregarIngresoSimulado, ObtenerCategoriasIngresoSimulado } = vi.hoisted(() => ({
+const { AgregarIngresoSimulado, ObtenerCategoriasIngresoSimulado, fromSupabaseSimulado } = vi.hoisted(() => ({
   AgregarIngresoSimulado: vi.fn(),
   ObtenerCategoriasIngresoSimulado: vi.fn(),
+  fromSupabaseSimulado: vi.fn(),
 }))
 
+// Solo lo usa el servicio real de categorías en test_selector_solo_categorias_ingreso.
+vi.mock('../servicios/clienteSupabase.js', () => ({
+  clienteSupabase: { from: fromSupabaseSimulado },
+}))
 vi.mock('../servicios/movimientos.js', () => ({
   AgregarIngreso: AgregarIngresoSimulado,
   ObtenerMovimientos: vi.fn(),
@@ -65,6 +70,7 @@ function ObtenerDialogo() {
 beforeEach(() => {
   AgregarIngresoSimulado.mockReset()
   ObtenerCategoriasIngresoSimulado.mockReset()
+  fromSupabaseSimulado.mockReset()
   ObtenerCategoriasIngresoSimulado.mockResolvedValue(CATEGORIAS)
   AgregarIngresoSimulado.mockResolvedValue(undefined)
   vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -116,6 +122,43 @@ describe('FormularioMovimiento', () => {
     expect(screen.getByRole('button', { name: 'Guardar' })).toHaveAttribute('type', 'submit')
     expect(screen.getByRole('button', { name: 'Cancelar' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Volver' })).toBeInTheDocument()
+  })
+
+  it('test_selector_solo_categorias_ingreso: con "Pago Ingresado" y "Sueldo" el select muestra exactamente esas dos opciones, sin categorías de gasto ni opción vacía', async () => {
+    // Tabla simulada de la cuenta, con categorías de gasto y sin ordenar: el filtro
+    // y el orden los pone el servicio real, como contra la API.
+    const tablaCategorias = [
+      { id: 'id-sueldo', nombre: 'Sueldo', tipo: 'INGRESO', es_defecto: false },
+      { id: 'id-mercado', nombre: 'Mercado', tipo: 'GASTO', es_defecto: false },
+      { id: 'id-pago-realizado', nombre: 'Pago Realizado', tipo: 'GASTO', es_defecto: true },
+      { id: 'id-pago-ingresado', nombre: 'Pago Ingresado', tipo: 'INGRESO', es_defecto: true },
+    ]
+    fromSupabaseSimulado.mockImplementation(() => ({
+      select: () => ({
+        eq: (columna, valor) =>
+          Promise.resolve({
+            data: tablaCategorias
+              .filter((categoria) => categoria[columna] === valor)
+              .map(({ id, nombre, es_defecto }) => ({ id, nombre, es_defecto })),
+            error: null,
+          }),
+      }),
+    }))
+    const serviciosReales = await vi.importActual('../servicios/categorias.js')
+    ObtenerCategoriasIngresoSimulado.mockImplementation(serviciosReales.ObtenerCategoriasIngreso)
+
+    RenderizarFormulario()
+    await ObtenerTitulo()
+
+    const campoCategoria = screen.getByLabelText('Categoría')
+    const opciones = within(campoCategoria).getAllByRole('option')
+
+    expect(opciones.map((opcion) => opcion.textContent)).toEqual(['Pago Ingresado', 'Sueldo'])
+    expect(opciones.every((opcion) => opcion.value !== '')).toBe(true)
+    expect(campoCategoria).toHaveValue('id-pago-ingresado')
+    expect(screen.queryByRole('option', { name: 'Pago Realizado' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Mercado' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /sin categoría/i })).not.toBeInTheDocument()
   })
 
   it('test_formulario_fecha_de_hoy: muestra la fecha local de hoy en "DD/MM/AAAA" y la envía como "AAAA-MM-DD"', async () => {
