@@ -59,6 +59,36 @@ body {
   background-color: #f3f4f6;
 }
 
+.selector-fecha {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.boton-selector-fecha {
+  font: inherit;
+  padding: 0.5rem;
+  color: inherit;
+  background-color: #fff;
+  border: 1px solid #6b7280;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+/* Se muestra debajo del botón, en la misma página: no es un diálogo. */
+.calendario-selector-fecha {
+  padding: 0.5rem;
+  background-color: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 0.25rem;
+}
+
+.calendario-selector-fecha .rdp-root {
+  --rdp-accent-color: #1a56db;
+  --rdp-accent-background-color: #e1effe;
+}
+
 .acciones-formulario {
   display: flex;
   gap: 0.75rem;

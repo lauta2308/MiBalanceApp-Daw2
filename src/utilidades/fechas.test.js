@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { FormatearFecha, ObtenerFechaHoy } from './fechas.js'
+import {
+  ConvertirFechaATexto,
+  ConvertirTextoAFecha,
+  FormatearFecha,
+  ObtenerFechaHoy,
+} from './fechas.js'
 
 afterEach(() => {
   vi.unstubAllEnvs()
@@ -44,5 +49,43 @@ describe('FormatearFecha', () => {
 
   it('test_fecha_no_texto_rechazada: rechaza un valor que no es texto', () => {
     expect(() => FormatearFecha(null)).toThrow('Formato de fecha inválido')
+  })
+})
+
+describe('ConvertirTextoAFecha', () => {
+  it('test_convertir_texto_a_fecha_local: da la medianoche local del día, también en UTC-3', () => {
+    vi.stubEnv('TZ', 'America/Argentina/Buenos_Aires')
+    const fecha = ConvertirTextoAFecha('2026-11-06')
+
+    // new Date("2026-11-06") sería la medianoche UTC: en UTC-3, las 21:00 del día 5.
+    expect(fecha.getTimezoneOffset()).toBe(180)
+    expect(fecha.getFullYear()).toBe(2026)
+    expect(fecha.getMonth()).toBe(10)
+    expect(fecha.getDate()).toBe(6)
+    expect(fecha.getHours()).toBe(0)
+    expect(fecha.getMinutes()).toBe(0)
+  })
+
+  it('test_convertir_texto_a_fecha_invalido_rechazado: rechaza otro formato, un día inexistente y un valor que no es texto', () => {
+    expect(() => ConvertirTextoAFecha('06/11/2026')).toThrow('Formato de fecha inválido')
+    expect(() => ConvertirTextoAFecha('2026-02-30')).toThrow('Formato de fecha inválido')
+    expect(() => ConvertirTextoAFecha('2026-13-01')).toThrow('Formato de fecha inválido')
+    expect(() => ConvertirTextoAFecha(undefined)).toThrow('Formato de fecha inválido')
+    expect(() => ConvertirTextoAFecha(new Date(2026, 10, 6))).toThrow('Formato de fecha inválido')
+  })
+})
+
+describe('ConvertirFechaATexto', () => {
+  it('test_convertir_fecha_a_texto_local: arma AAAA-MM-DD con el día local, también en UTC-3 a las 23:30', () => {
+    vi.stubEnv('TZ', 'America/Argentina/Buenos_Aires')
+    // A las 23:30 en UTC-3 ya es el 16 en UTC: pasar por UTC correría el día.
+    const fecha = new Date(1990, 2, 15, 23, 30)
+
+    expect(fecha.getTimezoneOffset()).toBe(180)
+    expect(ConvertirFechaATexto(fecha)).toBe('1990-03-15')
+    expect(ConvertirFechaATexto(new Date(2026, 8, 1, 0, 30))).toBe('2026-09-01')
+    // ObtenerFechaHoy conserva su resultado de FEAT-001b (test_fecha_hoy_local).
+    expect(ObtenerFechaHoy(new Date(2026, 0, 5, 23, 30))).toBe('2026-01-05')
+    expect(ObtenerFechaHoy(fecha)).toBe(ConvertirFechaATexto(fecha))
   })
 })
