@@ -18,3 +18,5 @@ dist/
 .env
 .env.local
 .env.*.local
+.vs/
+coverage/
