@@ -59,6 +59,19 @@ export async function CrearUsuarioPrueba() {
   return { cliente, usuario: data.user }
 }
 
+function CompletarDosDigitos(numero) {
+  return String(numero).padStart(2, '0')
+}
+
+// Solo para pruebas: "hoy UTC + N días" como AAAA-MM-DD. Es la excepción de AGENTS.md a la fecha local,
+// porque lo que se busca es el día UTC con el que el servidor valida la fecha (RF-107).
+export function ObtenerFechaUtcMasDias(dias) {
+  const ahora = new Date()
+  const fecha = new Date(Date.UTC(ahora.getUTCFullYear(), ahora.getUTCMonth(), ahora.getUTCDate() + dias))
+
+  return `${fecha.getUTCFullYear()}-${CompletarDosDigitos(fecha.getUTCMonth() + 1)}-${CompletarDosDigitos(fecha.getUTCDate())}`
+}
+
 // Única llamada a basp_agregar_movimiento de las pruebas: si cambia la firma, cambia solo acá.
 export function AgregarMovimiento(cliente, { tipo, monto, fecha = FECHA_MOVIMIENTO_PRUEBA, idCategoria }) {
   return cliente.rpc('basp_agregar_movimiento', {

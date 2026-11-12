@@ -5,6 +5,7 @@ import {
   CrearUsuarioPrueba,
   FECHA_MOVIMIENTO_PRUEBA,
   ObtenerConfiguracionPruebas,
+  ObtenerFechaUtcMasDias,
   ObtenerVariablesFaltantesPruebas,
 } from './ayudantesPruebas.js'
 
@@ -13,6 +14,48 @@ const CODIGO_DATOS_INVALIDOS = '22023'
 const MENSAJE_NO_PERMITIDO = 'Operación no permitida.'
 const MENSAJE_DATOS_INVALIDOS = 'Datos del movimiento inválidos.'
 const TIEMPO_MAXIMO_RED_MS = 30000
+const MONTO_MAXIMO = '999999999999.99'
+const MONTO_SOBRE_MAXIMO = '1000000000000.00'
+
+// Llama con "hoy UTC + dias". Si la corrida cruzó las 00:00 UTC durante la llamada, la repite una vez
+// con la fecha recalculada, para que el resultado corresponda al día UTC que ve el servidor.
+// La primera llamada pudo haber quedado registrada (D+2 evaluado ya en el día siguiente es D+1):
+// antesDeReintentar permite volver a leer el estado de referencia antes de la segunda llamada.
+async function EjecutarConFechaUtc(dias, llamada, antesDeReintentar = async () => {}) {
+  const diaUtcAntes = ObtenerFechaUtcMasDias(0)
+  const fecha = ObtenerFechaUtcMasDias(dias)
+  const resultado = await llamada(fecha)
+
+  if (ObtenerFechaUtcMasDias(0) === diaUtcAntes) {
+    return { fecha, resultado, diaCambio: false }
+  }
+
+  await antesDeReintentar()
+  const fechaRecalculada = ObtenerFechaUtcMasDias(dias)
+  return { fecha: fechaRecalculada, resultado: await llamada(fechaRecalculada), diaCambio: true }
+}
+
+// Usuario nuevo con saldo 0 y el id de su "Pago Ingresado".
+async function CrearUsuarioConPagoIngresado() {
+  const { cliente } = await CrearUsuarioPrueba()
+
+  const consultaCategorias = await cliente
+    .from('bat_categorias')
+    .select('id')
+    .eq('tipo', 'INGRESO')
+    .eq('es_defecto', true)
+  expect(consultaCategorias.error).toBeNull()
+  expect(consultaCategorias.data).toHaveLength(1)
+
+  return { cliente, idPagoIngresado: consultaCategorias.data[0].id }
+}
+
+async function LeerSaldoTexto(cliente) {
+  const { data, error } = await cliente.from('bat_cuentas').select('saldo::text')
+  expect(error).toBeNull()
+  expect(data).toHaveLength(1)
+  return data[0].saldo
+}
 
 const configuracion = ObtenerConfiguracionPruebas()
 
@@ -178,6 +221,164 @@ describe.skipIf(!configuracion)('Alta de movimientos contra Supabase real', () =
     expect(await LeerMovimientos(usuarioA.cliente)).toEqual(movimientosAntes)
   })
 
+  it('test_monto_maximo_superado_rechazado_api: la función rechaza el monto inválido "1000000000000.00" con 22023 sin dejar movimiento', async () => {
+    const saldoAntes = await LeerSaldo(usuarioA.cliente)
+    const movimientosAntes = await LeerMovimientos(usuarioA.cliente)
+    const pagoIngresado = BuscarCategoria(categoriasA, 'Pago Ingresado')
+
+    const { data, error } = await AgregarMovimiento(usuarioA.cliente, {
+      tipo: 'INGRESO',
+      monto: MONTO_SOBRE_MAXIMO,
+      idCategoria: pagoIngresado.id,
+    })
+
+    expect(data).toBeNull()
+    expect(error?.code).toBe(CODIGO_DATOS_INVALIDOS)
+    expect(error?.message).toBe(MENSAJE_DATOS_INVALIDOS)
+    expect(await LeerSaldo(usuarioA.cliente)).toBe(saldoAntes)
+    expect(await LeerMovimientos(usuarioA.cliente)).toEqual(movimientosAntes)
+  })
+
+  it('test_monto_tres_decimales_rechazado_api: la función rechaza el monto inválido "10.555" con 22023', async () => {
+    const saldoAntes = await LeerSaldo(usuarioA.cliente)
+    const movimientosAntes = await LeerMovimientos(usuarioA.cliente)
+    const pagoIngresado = BuscarCategoria(categoriasA, 'Pago Ingresado')
+
+    const { data, error } = await AgregarMovimiento(usuarioA.cliente, {
+      tipo: 'INGRESO',
+      monto: '10.555',
+      idCategoria: pagoIngresado.id,
+    })
+
+    expect(data).toBeNull()
+    expect(error?.code).toBe(CODIGO_DATOS_INVALIDOS)
+    expect(error?.message).toBe(MENSAJE_DATOS_INVALIDOS)
+    expect(await LeerSaldo(usuarioA.cliente)).toBe(saldoAntes)
+    expect(await LeerMovimientos(usuarioA.cliente)).toEqual(movimientosAntes)
+  })
+
+  it('test_fecha_pasado_manana_utc_rechazada_api: la función rechaza con 22023 una fecha de hoy UTC + 2 días', async () => {
+    let saldoAntes = await LeerSaldo(usuarioA.cliente)
+    let movimientosAntes = await LeerMovimientos(usuarioA.cliente)
+    const pagoIngresado = BuscarCategoria(categoriasA, 'Pago Ingresado')
+
+    // Si el día UTC cambió, la primera llamada pudo registrarse: se compara contra el estado posterior a ella.
+    const { fecha, resultado } = await EjecutarConFechaUtc(
+      2,
+      (fechaLlamada) =>
+        AgregarMovimiento(usuarioA.cliente, {
+          tipo: 'INGRESO',
+          monto: '100',
+          fecha: fechaLlamada,
+          idCategoria: pagoIngresado.id,
+        }),
+      async () => {
+        saldoAntes = await LeerSaldo(usuarioA.cliente)
+        movimientosAntes = await LeerMovimientos(usuarioA.cliente)
+      },
+    )
+
+    expect(resultado.data, `fecha ${fecha}`).toBeNull()
+    expect(resultado.error?.code, `fecha ${fecha}`).toBe(CODIGO_DATOS_INVALIDOS)
+    expect(resultado.error?.message, `fecha ${fecha}`).toBe(MENSAJE_DATOS_INVALIDOS)
+    expect(await LeerSaldo(usuarioA.cliente)).toBe(saldoAntes)
+    expect(await LeerMovimientos(usuarioA.cliente)).toEqual(movimientosAntes)
+  }, TIEMPO_MAXIMO_RED_MS)
+
+  it('test_fecha_manana_utc_aceptada_api: un ingreso con fecha de hoy UTC + 1 día se registra con esa fecha', async () => {
+    const pagoIngresado = BuscarCategoria(categoriasA, 'Pago Ingresado')
+
+    const { fecha, resultado } = await EjecutarConFechaUtc(1, (fechaLlamada) =>
+      AgregarMovimiento(usuarioA.cliente, {
+        tipo: 'INGRESO',
+        monto: '100',
+        fecha: fechaLlamada,
+        idCategoria: pagoIngresado.id,
+      }),
+    )
+
+    expect(resultado.error, `fecha ${fecha}`).toBeNull()
+    expect(typeof resultado.data).toBe('string')
+
+    const consulta = await usuarioA.cliente.from('bat_movimientos').select('fecha').eq('id', resultado.data)
+    expect(consulta.error).toBeNull()
+    expect(consulta.data).toEqual([{ fecha }])
+  }, TIEMPO_MAXIMO_RED_MS)
+
+  it('test_rechazos_api_saldo_sin_cambios: A con saldo 10000.00 no puede registrar montos 0, -50, 1000000000000.00 ni 10.555, ni con su "Pago Realizado", ni con el "Pago Ingresado" de B, ni con fecha de hoy UTC + 2 días; no quedan movimientos nuevos y el saldo sigue en "10000.00"', async () => {
+    const { cliente, idPagoIngresado } = await CrearUsuarioConPagoIngresado()
+    const categoriasPropias = await LeerCategorias(cliente)
+    const pagoRealizado = BuscarCategoria(categoriasPropias, 'Pago Realizado')
+    const pagoIngresadoB = BuscarCategoria(categoriasB, 'Pago Ingresado')
+
+    const fondeo = await AgregarMovimiento(cliente, {
+      tipo: 'INGRESO',
+      monto: '10000.00',
+      idCategoria: idPagoIngresado,
+    })
+    expect(fondeo.error).toBeNull()
+    expect(await LeerSaldo(cliente)).toBe('10000.00')
+    const movimientosAntes = await LeerMovimientos(cliente)
+
+    const intentos = [
+      { descripcion: 'monto 0', monto: '0', idCategoria: idPagoIngresado, codigo: CODIGO_DATOS_INVALIDOS },
+      { descripcion: 'monto -50', monto: '-50', idCategoria: idPagoIngresado, codigo: CODIGO_DATOS_INVALIDOS },
+      {
+        descripcion: `monto ${MONTO_SOBRE_MAXIMO}`,
+        monto: MONTO_SOBRE_MAXIMO,
+        idCategoria: idPagoIngresado,
+        codigo: CODIGO_DATOS_INVALIDOS,
+      },
+      { descripcion: 'monto 10.555', monto: '10.555', idCategoria: idPagoIngresado, codigo: CODIGO_DATOS_INVALIDOS },
+      {
+        descripcion: 'categoría de gasto propia',
+        monto: '100',
+        idCategoria: pagoRealizado.id,
+        codigo: CODIGO_SIN_PRIVILEGIOS,
+      },
+      {
+        descripcion: 'categoría de ingreso de B',
+        monto: '100',
+        idCategoria: pagoIngresadoB.id,
+        codigo: CODIGO_SIN_PRIVILEGIOS,
+      },
+    ]
+
+    for (const { descripcion, monto, idCategoria, codigo } of intentos) {
+      const { data, error } = await AgregarMovimiento(cliente, { tipo: 'INGRESO', monto, idCategoria })
+
+      expect(data, descripcion).toBeNull()
+      expect(error?.code, descripcion).toBe(codigo)
+    }
+
+    // Hasta acá ningún intento escribió: el estado de referencia sigue siendo saldo "10000.00".
+    expect(await LeerMovimientos(cliente)).toEqual(movimientosAntes)
+    expect(await LeerSaldo(cliente)).toBe('10000.00')
+
+    // Si el día UTC cambió, la primera llamada pudo registrarse: se compara contra el estado posterior a ella.
+    let saldoReferencia = '10000.00'
+    let movimientosReferencia = movimientosAntes
+    const { fecha, resultado } = await EjecutarConFechaUtc(
+      2,
+      (fechaLlamada) =>
+        AgregarMovimiento(cliente, {
+          tipo: 'INGRESO',
+          monto: '100',
+          fecha: fechaLlamada,
+          idCategoria: idPagoIngresado,
+        }),
+      async () => {
+        saldoReferencia = await LeerSaldo(cliente)
+        movimientosReferencia = await LeerMovimientos(cliente)
+      },
+    )
+    expect(resultado.data, `fecha ${fecha}`).toBeNull()
+    expect(resultado.error?.code, `fecha ${fecha}`).toBe(CODIGO_DATOS_INVALIDOS)
+
+    expect(await LeerMovimientos(cliente)).toEqual(movimientosReferencia)
+    expect(await LeerSaldo(cliente)).toBe(saldoReferencia)
+  }, TIEMPO_MAXIMO_RED_MS)
+
   it('test_tipo_gasto_rechazado_api: la función rechaza un movimiento de tipo GASTO', async () => {
     const saldoAntes = await LeerSaldo(usuarioA.cliente)
     const movimientosAntes = await LeerMovimientos(usuarioA.cliente)
@@ -299,5 +500,48 @@ describe.skipIf(!configuracion)('Orden de los movimientos contra Supabase real',
       { id: idPrimeroOctubre, fecha: '2026-10-01' },
       { id: idSeptiembre, fecha: '2026-09-17' },
     ])
+  }, TIEMPO_MAXIMO_RED_MS)
+})
+
+// Cada prueba crea su propio usuario con saldo 0: correr una sola (-t) crea un único usuario anónimo.
+describe.skipIf(!configuracion)('Precisión de montos y saldo contra Supabase real', () => {
+  async function RegistrarMontos(cliente, idPagoIngresado, montos) {
+    for (const monto of montos) {
+      const { data, error } = await AgregarMovimiento(cliente, {
+        tipo: 'INGRESO',
+        monto,
+        idCategoria: idPagoIngresado,
+      })
+
+      expect(error, `monto ${monto}`).toBeNull()
+      expect(typeof data).toBe('string')
+    }
+  }
+
+  it('test_monto_maximo_exacto_api: A con saldo 0 registra "999999999999.99" y su saldo es exactamente "999999999999.99"', async () => {
+    const { cliente, idPagoIngresado } = await CrearUsuarioConPagoIngresado()
+    expect(await LeerSaldoTexto(cliente)).toBe('0')
+
+    await RegistrarMontos(cliente, idPagoIngresado, [MONTO_MAXIMO])
+
+    expect(await LeerSaldoTexto(cliente)).toBe('999999999999.99')
+  }, TIEMPO_MAXIMO_RED_MS)
+
+  it('test_suma_decimales_exacta_api: A con saldo 0 registra "0.10" y "0.20" y su saldo es exactamente "0.30"', async () => {
+    const { cliente, idPagoIngresado } = await CrearUsuarioConPagoIngresado()
+    expect(await LeerSaldoTexto(cliente)).toBe('0')
+
+    await RegistrarMontos(cliente, idPagoIngresado, ['0.10', '0.20'])
+
+    expect(await LeerSaldoTexto(cliente)).toBe('0.30')
+  }, TIEMPO_MAXIMO_RED_MS)
+
+  it('test_dos_montos_maximos_api: A con saldo 0 registra dos veces "999999999999.99" y su saldo es exactamente "1999999999999.98"', async () => {
+    const { cliente, idPagoIngresado } = await CrearUsuarioConPagoIngresado()
+    expect(await LeerSaldoTexto(cliente)).toBe('0')
+
+    await RegistrarMontos(cliente, idPagoIngresado, [MONTO_MAXIMO, MONTO_MAXIMO])
+
+    expect(await LeerSaldoTexto(cliente)).toBe('1999999999999.98')
   }, TIEMPO_MAXIMO_RED_MS)
 })
