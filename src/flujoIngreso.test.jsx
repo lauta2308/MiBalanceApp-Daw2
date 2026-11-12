@@ -227,3 +227,150 @@ describe('Flujo de alta de ingreso', () => {
     expect(screen.getByText('USD 500,00')).toBeInTheDocument()
   })
 })
+
+// Categorías propias: el cliente no puede crearlas, así que solo existen en el servicio simulado.
+// Van ya ordenadas, como las entrega ObtenerCategoriasIngreso.
+const CATEGORIAS_PROPIAS = [
+  { id: 'id-pago-ingresado', nombre: 'Pago Ingresado', es_defecto: true },
+  { id: 'id-sueldo', nombre: 'Sueldo', es_defecto: false },
+  { id: 'id-ventas', nombre: 'Ventas', es_defecto: false },
+]
+
+// Montos en centavos con BigInt: nunca float (RNF-04).
+function ConvertirMontoACentavos(montoTexto) {
+  const [enteros, decimales = ''] = montoTexto.split('.')
+  return BigInt(enteros) * 100n + BigInt(decimales.padEnd(2, '0'))
+}
+
+function ConvertirCentavosAMonto(centavos) {
+  return `${centavos / 100n}.${String(centavos % 100n).padStart(2, '0')}`
+}
+
+// Guarda el alta en la base simulada con su orden de alta, como fecha_alta en BAT_MOVIMIENTOS.
+async function GuardarIngresoEnBase({ montoTexto, fecha, idCategoria }) {
+  const categoria = CATEGORIAS_PROPIAS.find((categoriaActual) => categoriaActual.id === idCategoria)
+
+  if (!categoria) {
+    throw new Error('Categoría inexistente')
+  }
+
+  const ordenAlta = baseSimulada.movimientos.length + 1
+  baseSimulada = {
+    saldo: ConvertirCentavosAMonto(
+      ConvertirMontoACentavos(baseSimulada.saldo) + ConvertirMontoACentavos(montoTexto),
+    ),
+    movimientos: [
+      ...baseSimulada.movimientos,
+      { id: `id-movimiento-${ordenAlta}`, tipo: 'INGRESO', monto: montoTexto, fecha, nombreCategoria: categoria.nombre, ordenAlta },
+    ],
+  }
+}
+
+// Mismo orden que la consulta real de ObtenerMovimientos: fecha desc y después fecha_alta desc.
+// La base guarda en orden de alta (el más viejo primero), así que sin ordenar la lista saldría al revés.
+function ObtenerMovimientosOrdenadosDeBase() {
+  const ordenados = [...baseSimulada.movimientos].sort(
+    (movimientoA, movimientoB) =>
+      movimientoB.fecha.localeCompare(movimientoA.fecha) || movimientoB.ordenAlta - movimientoA.ordenAlta,
+  )
+
+  return Promise.resolve(
+    ordenados.map(({ id, tipo, monto, fecha, nombreCategoria }) => ({ id, tipo, monto, fecha, nombreCategoria })),
+  )
+}
+
+// Abre el calendario y elige un día de 2026 con el selector de mes, sin cambiar el año.
+async function ElegirDiaDe2026(usuario, { mes, dia }) {
+  await usuario.click(screen.getByRole('button', { name: /^Fecha \d{2}\/\d{2}\/\d{4}$/ }))
+  await usuario.selectOptions(screen.getByRole('combobox', { name: 'Elegir el mes' }), mes)
+  // "\b" evita que el 1 encuentre también el 11, el 21 o el 31.
+  await usuario.click(
+    screen.getByRole('button', { name: new RegExp(`\\b${dia} de ${mes.toLowerCase()} de 2026`) }),
+  )
+}
+
+async function RegistrarIngreso(usuario, { monto, nombreCategoria, mes, dia }) {
+  await AbrirFormulario(usuario)
+  await usuario.type(screen.getByLabelText('Monto'), monto)
+  await usuario.selectOptions(screen.getByLabelText('Categoría'), nombreCategoria)
+
+  if (mes) {
+    await ElegirDiaDe2026(usuario, { mes, dia })
+  }
+
+  await usuario.click(screen.getByRole('button', { name: 'Guardar' }))
+  await ObtenerEncabezadoCuenta()
+}
+
+function LeerGruposDeLista() {
+  return screen.getAllByRole('heading', { level: 2 }).map((encabezado) => ({
+    fecha: encabezado.textContent,
+    movimientos: within(encabezado.closest('section'))
+      .getAllByRole('listitem')
+      .map((item) => item.textContent),
+  }))
+}
+
+describe('Flujo de alta con categoría y fecha elegidas', () => {
+  // Solo se falsea Date: userEvent y el mensaje de éxito siguen con los temporizadores reales.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 10, 6, 12, 0))
+    ObtenerCategoriasIngresoSimulado.mockResolvedValue(CATEGORIAS_PROPIAS)
+    AgregarIngresoSimulado.mockImplementation(GuardarIngresoEnBase)
+    ObtenerMovimientosSimulado.mockImplementation(ObtenerMovimientosOrdenadosDeBase)
+  })
+
+  it('test_alta_con_categoria_elegida_flujo: con saldo USD 10.000,00 se registra 1000 en "Sueldo" con la fecha de hoy y la cuenta muestra "Sueldo" "+1.000,00" bajo hoy, "USD 11.000,00" y el mensaje de éxito', async () => {
+    const usuario = userEvent.setup()
+    baseSimulada = { saldo: '10000', movimientos: [] }
+
+    RenderizarApp()
+    expect(await screen.findByText('USD 10.000,00')).toBeInTheDocument()
+
+    await AbrirFormulario(usuario)
+    expect(screen.getByRole('button', { name: 'Fecha 06/11/2026' })).toBeInTheDocument()
+    await usuario.type(screen.getByLabelText('Monto'), '1000')
+    await usuario.selectOptions(screen.getByLabelText('Categoría'), 'Sueldo')
+    await usuario.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    expect(await ObtenerEncabezadoCuenta()).toBeInTheDocument()
+    expect(await screen.findByText('USD 11.000,00')).toBeInTheDocument()
+    expect(AgregarIngresoSimulado).toHaveBeenCalledTimes(1)
+    expect(AgregarIngresoSimulado).toHaveBeenCalledWith({
+      montoTexto: '1000',
+      fecha: '2026-11-06',
+      idCategoria: 'id-sueldo',
+    })
+
+    const grupo = screen.getByRole('heading', { level: 2, name: '06/11/2026' }).closest('section')
+    const items = within(grupo).getAllByRole('listitem')
+    expect(items).toHaveLength(1)
+    expect(within(items[0]).getByText('Sueldo')).toBeInTheDocument()
+    expect(within(items[0]).getByText('+1.000,00')).toBeInTheDocument()
+    expect(screen.queryByText('Pago Ingresado')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(MENSAJE_EXITO)
+  })
+
+  it('test_lista_ordenada_por_fecha_y_alta: tras registrar 1.500 en "Sueldo" el 17/09/2026, 50.000 en "Ventas" el 01/10/2026 y 800 en "Pago Ingresado" el 01/10/2026, la lista muestra 01/10/2026 ("Pago Ingresado", "Ventas") y después 17/09/2026 ("Sueldo")', async () => {
+    const usuario = userEvent.setup()
+
+    RenderizarApp()
+    expect(await screen.findByText('USD 0,00')).toBeInTheDocument()
+
+    await RegistrarIngreso(usuario, { monto: '1500', nombreCategoria: 'Sueldo', mes: 'Septiembre', dia: 17 })
+    await RegistrarIngreso(usuario, { monto: '50000', nombreCategoria: 'Ventas', mes: 'Octubre', dia: 1 })
+    await RegistrarIngreso(usuario, { monto: '800', nombreCategoria: 'Pago Ingresado', mes: 'Octubre', dia: 1 })
+
+    expect(await screen.findByText('USD 52.300,00')).toBeInTheDocument()
+    expect(AgregarIngresoSimulado.mock.calls.map(([datosAlta]) => datosAlta)).toEqual([
+      { montoTexto: '1500', fecha: '2026-09-17', idCategoria: 'id-sueldo' },
+      { montoTexto: '50000', fecha: '2026-10-01', idCategoria: 'id-ventas' },
+      { montoTexto: '800', fecha: '2026-10-01', idCategoria: 'id-pago-ingresado' },
+    ])
+    expect(LeerGruposDeLista()).toEqual([
+      { fecha: '01/10/2026', movimientos: ['Pago Ingresado+800,00', 'Ventas+50.000,00'] },
+      { fecha: '17/09/2026', movimientos: ['Sueldo+1.500,00'] },
+    ])
+  })
+})

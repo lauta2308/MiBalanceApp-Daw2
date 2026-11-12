@@ -212,3 +212,92 @@ describe.skipIf(!configuracion)('Alta de movimientos contra Supabase real', () =
     expect(await LeerSaldo(usuarioA.cliente)).toBe(saldoAntes)
   })
 })
+
+// Suite aparte con su propio usuario: correrla sola (-t) crea un único usuario anónimo.
+describe.skipIf(!configuracion)('Alta de movimientos con fecha elegida contra Supabase real', () => {
+  it('test_alta_fecha_antigua_api: un ingreso de 100 con fecha "1990-03-15" se guarda con esa fecha y el saldo sube en 100', async () => {
+    const { cliente } = await CrearUsuarioPrueba()
+
+    const consultaCategorias = await cliente
+      .from('bat_categorias')
+      .select('id')
+      .eq('tipo', 'INGRESO')
+      .eq('es_defecto', true)
+    expect(consultaCategorias.error).toBeNull()
+    expect(consultaCategorias.data).toHaveLength(1)
+    const idPagoIngresado = consultaCategorias.data[0].id
+
+    const cuentaAntes = await cliente.from('bat_cuentas').select('saldo::text')
+    expect(cuentaAntes.error).toBeNull()
+    expect(cuentaAntes.data).toEqual([{ saldo: '0' }])
+
+    const { data: idMovimiento, error } = await AgregarMovimiento(cliente, {
+      tipo: 'INGRESO',
+      monto: '100',
+      fecha: '1990-03-15',
+      idCategoria: idPagoIngresado,
+    })
+
+    expect(error).toBeNull()
+    expect(typeof idMovimiento).toBe('string')
+
+    const consultaMovimiento = await cliente
+      .from('bat_movimientos')
+      .select('monto::text, fecha')
+      .eq('id', idMovimiento)
+
+    expect(consultaMovimiento.error).toBeNull()
+    expect(consultaMovimiento.data).toEqual([{ monto: '100.00', fecha: '1990-03-15' }])
+
+    const cuentaDespues = await cliente.from('bat_cuentas').select('saldo::text')
+    expect(cuentaDespues.error).toBeNull()
+    expect(cuentaDespues.data).toEqual([{ saldo: '100' }])
+  }, TIEMPO_MAXIMO_RED_MS)
+})
+
+// Suite aparte con su propio usuario: correrla sola (-t) crea un único usuario anónimo.
+describe.skipIf(!configuracion)('Orden de los movimientos contra Supabase real', () => {
+  it('test_movimientos_ordenados_api: tras tres altas con "Pago Ingresado" (2026-09-17, 2026-10-01 y otra 2026-10-01) la lectura con el orden de ObtenerMovimientos devuelve la última de 2026-10-01, la primera de 2026-10-01 y la de 2026-09-17', async () => {
+    const { cliente } = await CrearUsuarioPrueba()
+
+    const consultaCategorias = await cliente
+      .from('bat_categorias')
+      .select('id')
+      .eq('tipo', 'INGRESO')
+      .eq('es_defecto', true)
+    expect(consultaCategorias.error).toBeNull()
+    expect(consultaCategorias.data).toHaveLength(1)
+    const idPagoIngresado = consultaCategorias.data[0].id
+
+    // Las altas van una después de otra: cada llamada es su propia transacción y su propio fecha_alta.
+    const idsMovimientos = []
+    for (const fecha of ['2026-09-17', '2026-10-01', '2026-10-01']) {
+      const { data: idMovimiento, error } = await AgregarMovimiento(cliente, {
+        tipo: 'INGRESO',
+        monto: '100',
+        fecha,
+        idCategoria: idPagoIngresado,
+      })
+
+      expect(error, `alta del ${fecha}`).toBeNull()
+      expect(typeof idMovimiento).toBe('string')
+      idsMovimientos.push(idMovimiento)
+    }
+
+    const [idSeptiembre, idPrimeroOctubre, idSegundoOctubre] = idsMovimientos
+
+    // El mismo orden que la consulta de ObtenerMovimientos.
+    const consulta = await cliente
+      .from('bat_movimientos')
+      .select('id, fecha')
+      .order('fecha', { ascending: false })
+      .order('fecha_alta', { ascending: false })
+
+    expect(consulta.error).toBeNull()
+    expect(consulta.data).toEqual([
+      { id: idSegundoOctubre, fecha: '2026-10-01' },
+      { id: idPrimeroOctubre, fecha: '2026-10-01' },
+      { id: idSeptiembre, fecha: '2026-09-17' },
+    ])
+  }, TIEMPO_MAXIMO_RED_MS)
+})

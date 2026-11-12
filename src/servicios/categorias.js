@@ -1,17 +1,17 @@
 import { clienteSupabase } from './clienteSupabase.js'
+import { OrdenarCategorias } from '../utilidades/ordenCategorias.js'
 
-// La categoría por defecto ("Pago Ingresado") va primero. RLS devuelve solo las de la cuenta del usuario.
+// RLS devuelve solo las de la cuenta del usuario. El orden se aplica en el cliente (ADR-004):
+// la categoría por defecto ("Pago Ingresado") primero y el resto sin distinguir mayúsculas ni tildes.
 export async function ObtenerCategoriasIngreso() {
   const { data: categorias, error } = await clienteSupabase
     .from('bat_categorias')
     .select('id, nombre, es_defecto')
     .eq('tipo', 'INGRESO')
-    .order('es_defecto', { ascending: false })
-    .order('nombre')
 
   if (error) {
     throw error
   }
 
-  return categorias
+  return OrdenarCategorias(categorias)
 }

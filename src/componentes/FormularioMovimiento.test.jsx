@@ -3,11 +3,16 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 
-const { AgregarIngresoSimulado, ObtenerCategoriasIngresoSimulado } = vi.hoisted(() => ({
+const { AgregarIngresoSimulado, ObtenerCategoriasIngresoSimulado, fromSupabaseSimulado } = vi.hoisted(() => ({
   AgregarIngresoSimulado: vi.fn(),
   ObtenerCategoriasIngresoSimulado: vi.fn(),
+  fromSupabaseSimulado: vi.fn(),
 }))
 
+// Solo lo usa el servicio real de categorías en test_selector_solo_categorias_ingreso.
+vi.mock('../servicios/clienteSupabase.js', () => ({
+  clienteSupabase: { from: fromSupabaseSimulado },
+}))
 vi.mock('../servicios/movimientos.js', () => ({
   AgregarIngreso: AgregarIngresoSimulado,
   ObtenerMovimientos: vi.fn(),
@@ -62,9 +67,28 @@ function ObtenerDialogo() {
   return screen.getByRole('alertdialog')
 }
 
+// El botón de la fecha se anuncia con la etiqueta y la fecha visible: "Fecha 06/11/2026".
+function ObtenerBotonFecha(fechaVisible) {
+  return screen.getByRole('button', { name: `Fecha ${fechaVisible}` })
+}
+
+// "\b" evita que el 5 encuentre también el 15 o el 25.
+function ObtenerDia(numero, mesAnio) {
+  return screen.getByRole('button', { name: new RegExp(`\\b${numero} de ${mesAnio}`) })
+}
+
+// Abre el calendario desde el 06/11/2026 y llega al 15/03/1990 con los selectores de año y mes.
+async function ElegirFecha15DeMarzoDe1990(usuario) {
+  await usuario.click(ObtenerBotonFecha('06/11/2026'))
+  await usuario.selectOptions(screen.getByRole('combobox', { name: 'Elegir el año' }), '1990')
+  await usuario.selectOptions(screen.getByRole('combobox', { name: 'Elegir el mes' }), 'Marzo')
+  await usuario.click(ObtenerDia(15, 'marzo de 1990'))
+}
+
 beforeEach(() => {
   AgregarIngresoSimulado.mockReset()
   ObtenerCategoriasIngresoSimulado.mockReset()
+  fromSupabaseSimulado.mockReset()
   ObtenerCategoriasIngresoSimulado.mockResolvedValue(CATEGORIAS)
   AgregarIngresoSimulado.mockResolvedValue(undefined)
   vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -118,7 +142,44 @@ describe('FormularioMovimiento', () => {
     expect(screen.getByRole('button', { name: 'Volver' })).toBeInTheDocument()
   })
 
-  it('test_formulario_fecha_de_hoy: muestra la fecha local de hoy en "DD/MM/AAAA" y la envía como "AAAA-MM-DD"', async () => {
+  it('test_selector_solo_categorias_ingreso: con "Pago Ingresado" y "Sueldo" el select muestra exactamente esas dos opciones, sin categorías de gasto ni opción vacía', async () => {
+    // Tabla simulada de la cuenta, con categorías de gasto y sin ordenar: el filtro
+    // y el orden los pone el servicio real, como contra la API.
+    const tablaCategorias = [
+      { id: 'id-sueldo', nombre: 'Sueldo', tipo: 'INGRESO', es_defecto: false },
+      { id: 'id-mercado', nombre: 'Mercado', tipo: 'GASTO', es_defecto: false },
+      { id: 'id-pago-realizado', nombre: 'Pago Realizado', tipo: 'GASTO', es_defecto: true },
+      { id: 'id-pago-ingresado', nombre: 'Pago Ingresado', tipo: 'INGRESO', es_defecto: true },
+    ]
+    fromSupabaseSimulado.mockImplementation(() => ({
+      select: () => ({
+        eq: (columna, valor) =>
+          Promise.resolve({
+            data: tablaCategorias
+              .filter((categoria) => categoria[columna] === valor)
+              .map(({ id, nombre, es_defecto }) => ({ id, nombre, es_defecto })),
+            error: null,
+          }),
+      }),
+    }))
+    const serviciosReales = await vi.importActual('../servicios/categorias.js')
+    ObtenerCategoriasIngresoSimulado.mockImplementation(serviciosReales.ObtenerCategoriasIngreso)
+
+    RenderizarFormulario()
+    await ObtenerTitulo()
+
+    const campoCategoria = screen.getByLabelText('Categoría')
+    const opciones = within(campoCategoria).getAllByRole('option')
+
+    expect(opciones.map((opcion) => opcion.textContent)).toEqual(['Pago Ingresado', 'Sueldo'])
+    expect(opciones.every((opcion) => opcion.value !== '')).toBe(true)
+    expect(campoCategoria).toHaveValue('id-pago-ingresado')
+    expect(screen.queryByRole('option', { name: 'Pago Realizado' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Mercado' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /sin categoría/i })).not.toBeInTheDocument()
+  })
+
+  it('test_formulario_fecha_de_hoy: el control "Fecha" muestra la fecha local de hoy en "DD/MM/AAAA" y "Guardar" la envía como "AAAA-MM-DD"', async () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date(2026, 10, 11, 23, 30))
     const usuario = userEvent.setup()
@@ -127,14 +188,96 @@ describe('FormularioMovimiento', () => {
     await ObtenerTitulo()
 
     const campoFecha = screen.getByLabelText('Fecha')
-    expect(campoFecha).toHaveValue('11/11/2026')
-    expect(campoFecha).toHaveAttribute('readonly')
+    expect(campoFecha).toBe(ObtenerBotonFecha('11/11/2026'))
+    expect(campoFecha).toHaveTextContent(/^11\/11\/2026$/)
 
     await usuario.type(ObtenerCampoMonto(), '500')
     await usuario.click(screen.getByRole('button', { name: 'Guardar' }))
 
     await waitFor(() => expect(AgregarIngresoSimulado).toHaveBeenCalledTimes(1))
     expect(AgregarIngresoSimulado.mock.calls[0][0].fecha).toBe('2026-11-11')
+  })
+
+  it('test_fecha_local_a_las_22_utc_menos_3: a las 22:00 de Buenos Aires (01:00 UTC del día siguiente) preselecciona el 06/11/2026 y lo envía', async () => {
+    vi.stubEnv('TZ', 'America/Argentina/Buenos_Aires')
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(Date.UTC(2026, 10, 7, 1, 0)))
+    expect(new Date().getTimezoneOffset()).toBe(180)
+    expect(new Date().getHours()).toBe(22)
+    const usuario = userEvent.setup()
+
+    RenderizarFormulario()
+    await ObtenerTitulo()
+
+    const botonFecha = ObtenerBotonFecha('06/11/2026')
+    await usuario.click(botonFecha)
+
+    const seleccionados = screen.getAllByRole('gridcell', { selected: true })
+    expect(seleccionados).toHaveLength(1)
+    expect(within(seleccionados[0]).getByRole('button', { name: /\b6 de noviembre de 2026/ })).toBeInTheDocument()
+    // El 7 de noviembre ya es "mañana" para el usuario, aunque en UTC sea hoy.
+    expect(ObtenerDia(7, 'noviembre de 2026')).toBeDisabled()
+
+    await usuario.click(botonFecha)
+    await usuario.type(ObtenerCampoMonto(), '500')
+    await usuario.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    await waitFor(() => expect(AgregarIngresoSimulado).toHaveBeenCalledTimes(1))
+    expect(AgregarIngresoSimulado).toHaveBeenCalledWith(
+      expect.objectContaining({ fecha: '2026-11-06' }),
+    )
+  })
+
+  it('test_fecha_antigua_se_envia: se elige el 15/03/1990 con los selectores de año y mes y AgregarIngreso recibe "1990-03-15"', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 10, 6, 12, 0))
+    const usuario = userEvent.setup()
+
+    RenderizarFormulario()
+    await ObtenerTitulo()
+
+    await ElegirFecha15DeMarzoDe1990(usuario)
+
+    expect(ObtenerBotonFecha('15/03/1990')).toHaveAttribute('aria-expanded', 'false')
+
+    await usuario.type(ObtenerCampoMonto(), '500')
+    await usuario.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    expect(await screen.findByTestId('sonda-cuenta')).toHaveTextContent(`Cuenta|/|${MENSAJE_EXITO}`)
+    expect(AgregarIngresoSimulado).toHaveBeenCalledTimes(1)
+    expect(AgregarIngresoSimulado).toHaveBeenCalledWith({
+      montoTexto: '500',
+      fecha: '1990-03-15',
+      idCategoria: 'id-pago-ingresado',
+    })
+  })
+
+  it('test_falla_alta_conserva_fecha_rechazado: si AgregarIngreso es rechazado con el 15/03/1990 muestra el error fijo y la fecha elegida se conserva', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 10, 6, 12, 0))
+    AgregarIngresoSimulado.mockRejectedValue(new Error(ERROR_TECNICO))
+    const usuario = userEvent.setup()
+
+    RenderizarFormulario()
+    await ObtenerTitulo()
+
+    await ElegirFecha15DeMarzoDe1990(usuario)
+    await usuario.type(ObtenerCampoMonto(), '500')
+    await usuario.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    const dialogo = await screen.findByRole('alertdialog')
+    expect(dialogo.textContent).toBe(`${MENSAJE_ERROR_ALTA}Aceptar`)
+    expect(AgregarIngresoSimulado).toHaveBeenCalledWith(
+      expect.objectContaining({ fecha: '1990-03-15' }),
+    )
+
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Aceptar' }))
+
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('sonda-cuenta')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Fecha')).toHaveTextContent(/^15\/03\/1990$/)
+    expect(ObtenerBotonFecha('15/03/1990')).toBeInTheDocument()
+    expect(ObtenerCampoMonto()).toHaveValue('500')
   })
 
   it('test_formulario_guarda_y_navega: con monto 500 envía el texto, la categoría por defecto y la fecha de hoy, y navega a "/" con el mensaje de éxito', async () => {
