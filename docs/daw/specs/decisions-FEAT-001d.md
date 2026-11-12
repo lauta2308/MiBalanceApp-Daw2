@@ -1,0 +1,12 @@
+# Decisiones de FEAT-001d
+
+Formato: decisión — quién la aprobó — fecha — bloque.
+
+- La autonomía del ticket es `minimal` — usuario — 2026-11-12 — CLASSIFY
+- `.daw/config.yml` (`spec-format: daw`, de `/daw-init`) se commiteó en la rama de FEAT-001d (265fd79) y viaja en su PR — usuario — 2026-11-12 — DEFINE
+- La máscara del monto es código propio sobre texto, sin librería (ADR-005) — orquestador (modo minimal) — 2026-11-12 — PLAN
+- Al pegar un monto con un solo punto seguido de uno o dos dígitos y sin coma ("1500.50"), ese punto se lee como coma decimal; al teclear, el punto es siempre separador de miles. Caso que el PRD no resolvía, detectado por el arch-auditor — usuario — 2026-11-12 — PLAN
+- AC-20 se prueba contra la API con las categorías por defecto: "Pago Realizado" de A como categoría de gasto (en lugar de "Mercado") y "Pago Ingresado" de B como categoría de ingreso de otro usuario (en lugar de "Ventas"). El cliente no puede crear categorías (solo `select` para `authenticated`) y la condición que se prueba es la misma — usuario — 2026-11-12 — PLAN
+- Advertencias del arch-auditor sobre la spec, resueltas en la spec antes de CODE: agrupación de miles lineal por tramos y no el lookahead de `formatoMoneda.js` (cuadrático, R-04); cursor contado desde la derecha; `useLayoutEffect` atado a un contador `versionMonto` para que el cursor vuelva también cuando la máscara rechaza un carácter; `ManejarCambioMonto` como manejador con nombre; `SuperaMontoMaximo` renombrada a `ValidarMontoMaximo`; `test_validar_monto_invalido_rechazado` conserva "   " y "-5" y suma "10,555"; fecha UTC de las pruebas en `pruebas/ayudantesPruebas.js` con un reintento si la corrida cruza las 00:00 UTC — orquestador (modo minimal) — 2026-11-12 — PLAN
+- No se agregó un tope de dígitos al campo (lo sugería el arch-auditor): con la agrupación lineal el costo ya está acotado y un tope sería una regla de producto que el PRD no tiene — orquestador (modo minimal) — 2026-11-12 — PLAN
+- W-SPEC-02 (bloques grandes) se acepta sin dividir: Block 1 son funciones puras de un mismo módulo con sus pruebas, Block 2 es un solo componente y Block 3 es una migración con sus pruebas de integración; dividirlos dejaría partes que no se prueban solas — orquestador (modo minimal) — 2026-11-12 — PLAN
