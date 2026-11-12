@@ -254,3 +254,50 @@ describe.skipIf(!configuracion)('Alta de movimientos con fecha elegida contra Su
     expect(cuentaDespues.data).toEqual([{ saldo: '100' }])
   }, TIEMPO_MAXIMO_RED_MS)
 })
+
+// Suite aparte con su propio usuario: correrla sola (-t) crea un único usuario anónimo.
+describe.skipIf(!configuracion)('Orden de los movimientos contra Supabase real', () => {
+  it('test_movimientos_ordenados_api: tras tres altas con "Pago Ingresado" (2026-09-17, 2026-10-01 y otra 2026-10-01) la lectura con el orden de ObtenerMovimientos devuelve la última de 2026-10-01, la primera de 2026-10-01 y la de 2026-09-17', async () => {
+    const { cliente } = await CrearUsuarioPrueba()
+
+    const consultaCategorias = await cliente
+      .from('bat_categorias')
+      .select('id')
+      .eq('tipo', 'INGRESO')
+      .eq('es_defecto', true)
+    expect(consultaCategorias.error).toBeNull()
+    expect(consultaCategorias.data).toHaveLength(1)
+    const idPagoIngresado = consultaCategorias.data[0].id
+
+    // Las altas van una después de otra: cada llamada es su propia transacción y su propio fecha_alta.
+    const idsMovimientos = []
+    for (const fecha of ['2026-09-17', '2026-10-01', '2026-10-01']) {
+      const { data: idMovimiento, error } = await AgregarMovimiento(cliente, {
+        tipo: 'INGRESO',
+        monto: '100',
+        fecha,
+        idCategoria: idPagoIngresado,
+      })
+
+      expect(error, `alta del ${fecha}`).toBeNull()
+      expect(typeof idMovimiento).toBe('string')
+      idsMovimientos.push(idMovimiento)
+    }
+
+    const [idSeptiembre, idPrimeroOctubre, idSegundoOctubre] = idsMovimientos
+
+    // El mismo orden que la consulta de ObtenerMovimientos.
+    const consulta = await cliente
+      .from('bat_movimientos')
+      .select('id, fecha')
+      .order('fecha', { ascending: false })
+      .order('fecha_alta', { ascending: false })
+
+    expect(consulta.error).toBeNull()
+    expect(consulta.data).toEqual([
+      { id: idSegundoOctubre, fecha: '2026-10-01' },
+      { id: idPrimeroOctubre, fecha: '2026-10-01' },
+      { id: idSeptiembre, fecha: '2026-09-17' },
+    ])
+  }, TIEMPO_MAXIMO_RED_MS)
+})
