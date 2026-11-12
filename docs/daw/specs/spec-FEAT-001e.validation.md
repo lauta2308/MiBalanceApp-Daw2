@@ -15,10 +15,10 @@
   ✅ F-SPEC-16: every documented error is named by a test
   ✅ F-SPEC-11: dependencies between blocks are declared
   ⚠️ W-SPEC-01: block referencing no FR — enabler or gold-plating?: Block 3 (Saldo consistente en una secuencia de 20 altas)
-  ⚠️ W-SPEC-02: large block, consider splitting: Block 1 (Guardado en curso en el formulario) (3 files, 586 words), Block 2 (Flujo del formulario y de los mensajes) (3 files, 629 words)
+  ⚠️ W-SPEC-02: large block, consider splitting: Block 1 (Guardado en curso en el formulario) (3 files, 589 words), Block 2 (Flujo del formulario y de los mensajes) (3 files, 636 words)
   👁  F-SPEC-12 (contradicts the PRD) and F-SPEC-13 (terminology diverging from
       the PRD) are MANUAL: judge them and say so explicitly in your report.
-  ✅ F-SPEC-LOOP: 0 loop(s) since a human decided, under the ceiling of 3; 2 in total for this document
+  ✅ F-SPEC-LOOP: 1 loop(s) since a human decided, under the ceiling of 3; 3 in total for this document
 ────────────────────────────────────────────────────────────────
 Total: 13 passed, 0 failed, 2 warnings
 Result: PASSED

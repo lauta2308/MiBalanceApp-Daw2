@@ -6,8 +6,8 @@
 | PRD | docs/daw/prd/prd-FEAT-001e.md |
 | Tier | FEATURE |
 | Date | 2026-11-12 |
-| Spec loops | 2 |
-| Loops since last human decision | 0 |
+| Spec loops | 3 |
+| Loops since last human decision | 1 |
 
 ## Summary
 El único cambio de producción es el guardado en curso de "Añadir Ingreso" (FR-02):
@@ -85,9 +85,9 @@ Implementa FR-02 y AC-21, y mitiga R-01 y R-02 de `threat-FEAT-001e.md`:
 Fuera del alcance de este bloque, por decisión del usuario (riesgos R-05 y R-06 de `threat-FEAT-001e.md`): el "atrás" del navegador no se bloquea durante el alta, y "Guardando…" no tiene tiempo máximo.
 
 **Required tests**
-- [ ] test_guardar_doble_clic_duplicado_rechazado: con `AgregarIngreso` pendiente, un clic en "Guardar" seguido de un segundo envío con `fireEvent.submit(form)` llama a `AgregarIngreso` una sola vez. El segundo envío llega a `onSubmit` aunque el botón ya esté deshabilitado, así que la prueba ejercita la guardia `envioEnCurso`, que es lo que ADR-006 agrega frente a la opción 1: sin la referencia tiene que fallar. Valida AC-21 (sad path: envío duplicado).
-- [ ] test_guardando_deshabilita_formulario: con `AgregarIngreso` pendiente, el botón dice "Guardando…" y está deshabilitado, y también lo están el monto, la categoría, el botón "Fecha", "Cancelar" y "Volver". Si el calendario estaba abierto al guardar, sus botones y selectores también quedan deshabilitados. Al resolver, navega a `/`. Valida AC-21.
-- [ ] test_falla_alta_rehabilita_formulario_rechazado: si `AgregarIngreso` es rechazado, muestra el mensaje fijo, "Guardar" vuelve habilitado con su texto, los campos conservan monto, categoría y fecha, y un nuevo "Guardar" vuelve a llamar a `AgregarIngreso`. Valida AC-21 (sad path: alta rechazada).
+- [ ] test_guardar_doble_clic_duplicado_rechazado — con `AgregarIngreso` pendiente, un clic en "Guardar" seguido de un segundo envío con `fireEvent.submit(form)` llama a `AgregarIngreso` una sola vez. El segundo envío llega a `onSubmit` aunque el botón ya esté deshabilitado, así que la prueba ejercita la guardia `envioEnCurso`, que es lo que ADR-006 agrega frente a la opción 1: sin la referencia tiene que fallar. Valida AC-21 (sad path: envío duplicado).
+- [ ] test_guardando_deshabilita_formulario — con `AgregarIngreso` pendiente, el botón dice "Guardando…" y está deshabilitado, y también lo están el monto, la categoría, el botón "Fecha", "Cancelar" y "Volver". Si el calendario estaba abierto al guardar, sus botones y selectores también quedan deshabilitados. Al resolver, navega a `/`. Valida AC-21.
+- [ ] test_falla_alta_rehabilita_formulario_rechazado — si `AgregarIngreso` es rechazado, muestra el mensaje fijo, "Guardar" vuelve habilitado con su texto, los campos conservan monto, categoría y fecha, y un nuevo "Guardar" vuelve a llamar a `AgregarIngreso`. Valida AC-21 (sad path: alta rechazada).
 
 **Completion criterion**
 Pasan las tres pruebas y siguen en verde las demás de `FormularioMovimiento.test.jsx` y `flujoIngreso.test.jsx`.
@@ -119,13 +119,13 @@ Este bloque no agrega manejo de errores; prueba en el flujo completo el que ya t
 - Alta rechazada por el servidor: "No se pudo registrar el ingreso. Vuelva a intentarlo." con "Aceptar", sin el error técnico y sin cambios en la cuenta.
 
 **Required tests**
-- [ ] test_formulario_limpio_al_volver_flujo: después de la flecha, "Cancelar" y guardar, volver a abrir muestra el monto vacío, "Pago Ingresado" y la fecha de hoy. Valida AC-08.
-- [ ] test_doble_clic_guardar_flujo: con saldo 10000.00 y el alta pendiente, un clic en "Guardar" con 1500 seguido de `fireEvent.submit(form)` registra un solo ingreso y muestra "USD 11.500,00". Valida AC-21.
-- [ ] test_segundo_ingreso_con_mensaje_exito_flujo: con el mensaje de éxito visible se registra un segundo ingreso de 500 sin cerrarlo. Antes del clic en "Añadir Ingreso", la prueba comprueba que el mensaje sigue en pantalla, y no depende de los 3 s reales del cierre. Valida AC-25.
-- [ ] test_mensaje_error_monto_cero_diez_segundos_flujo: "El monto debe ser mayor a 0." sigue visible a los 10 s y se cierra con "Aceptar". Los temporizadores son falsos completos (`vi.useFakeTimers()` después de renderizar, como en `test_mensaje_error_validacion_hasta_aceptar`), no solo `Date`, así que un cierre por `setTimeout` haría fallar la prueba. Valida AC-26.
-- [ ] test_error_carga_cuenta_sin_detalle_tecnico_flujo: la falla de carga de la sección Cuenta muestra el mensaje fijo en español con "Aceptar" y sin el error técnico. Valida AC-33.
-- [ ] test_falla_alta_sin_cambios_rechazado: prueba existente, sin cambios. El alta rechazada muestra el mensaje fijo sin el error técnico y la cuenta no cambia. Valida AC-33.
-- [ ] test_mensaje_error_validacion_hasta_aceptar: prueba existente de `FormularioMovimiento.test.jsx`, sin cambios. Valida AC-26 a nivel del componente.
+- [ ] test_formulario_limpio_al_volver_flujo — después de la flecha, "Cancelar" y guardar, volver a abrir muestra el monto vacío, "Pago Ingresado" y la fecha de hoy. Valida AC-08.
+- [ ] test_doble_clic_guardar_flujo — con saldo 10000.00 y el alta pendiente, un clic en "Guardar" con 1500 seguido de `fireEvent.submit(form)` registra un solo ingreso y muestra "USD 11.500,00". Valida AC-21.
+- [ ] test_segundo_ingreso_con_mensaje_exito_flujo — con el mensaje de éxito visible se registra un segundo ingreso de 500 sin cerrarlo. Antes del clic en "Añadir Ingreso", la prueba comprueba que el mensaje sigue en pantalla, y no depende de los 3 s reales del cierre. Valida AC-25.
+- [ ] test_mensaje_error_monto_cero_diez_segundos_flujo — "El monto debe ser mayor a 0." sigue visible a los 10 s y se cierra con "Aceptar". Los temporizadores son falsos completos (`vi.useFakeTimers()` después de renderizar, como en `test_mensaje_error_validacion_hasta_aceptar`), no solo `Date`, así que un cierre por `setTimeout` haría fallar la prueba. Valida AC-26.
+- [ ] test_error_carga_cuenta_sin_detalle_tecnico_flujo — la falla de carga de la sección Cuenta muestra el mensaje fijo en español con "Aceptar" y sin el error técnico. Valida AC-33.
+- [ ] test_falla_alta_sin_cambios_rechazado — prueba existente, sin cambios. El alta rechazada muestra el mensaje fijo sin el error técnico y la cuenta no cambia. Valida AC-33.
+- [ ] test_mensaje_error_validacion_hasta_aceptar — prueba existente de `FormularioMovimiento.test.jsx`, sin cambios. Valida AC-26 a nivel del componente.
 
 **Completion criterion**
 Pasan las siete pruebas, cinco nuevas y dos existentes, sin cambios en `src/` fuera de los archivos `*.test.jsx`.
@@ -163,7 +163,7 @@ Implementa la prueba de NFR-01 y AC-32, y mitiga R-04:
 - Sin condiciones de error propias: la prueba solo hace altas válidas. Los rechazos de la API ya los cubren las pruebas de FEAT-001b y FEAT-001d.
 
 **Required tests**
-- [ ] test_secuencia_veinte_altas_saldo_consistente_api: con saldo 0, después de cada una de 20 altas con montos y fechas distintos, el saldo es igual a la suma de ingresos menos gastos y a la suma esperada, con 0 diferencias. Valida AC-32.
+- [ ] test_secuencia_veinte_altas_saldo_consistente_api — con saldo 0, después de cada una de 20 altas con montos y fechas distintos, el saldo es igual a la suma de ingresos menos gastos y a la suma esperada, con 0 diferencias. Valida AC-32.
 
 **Completion criterion**
 La prueba pasa contra Supabase con un solo inicio de sesión anónimo.
