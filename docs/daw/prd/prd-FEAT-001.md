@@ -15,7 +15,7 @@
 | FEAT-001b | Registrar ingreso con Pago Ingresado por defecto | prd-FEAT-001b.md | AC-06, AC-07, AC-09, AC-18, AC-24, AC-28, AC-31 | depends on a | done (mergeado en main con squash, PR #9) |
 | FEAT-001c | Elegir categoría y fecha del ingreso | prd-FEAT-001c.md | AC-05, AC-10, AC-11, AC-12, AC-13, AC-14, AC-23 | depends on b | done (mergeado en main con squash, PR #11) |
 | FEAT-001d | Monto del ingreso y límites | prd-FEAT-001d.md | AC-15, AC-16, AC-17, AC-19, AC-20, AC-29, AC-30 | depends on b | done (mergeado en main con squash, PR #13) |
-| FEAT-001e | Comportamiento del formulario y mensajes | prd-FEAT-001e.md | AC-08, AC-21, AC-25, AC-26, AC-32, AC-33 | depends on b and c | active |
+| FEAT-001e | Comportamiento del formulario y mensajes | prd-FEAT-001e.md | AC-08, AC-21, AC-25, AC-26, AC-32, AC-33 | depends on b and c | done (mergeado en main con squash, PR #16) |
 
 Los 33 criterios provienen de la versión sin dividir de este PRD (2026-11-07), escrita a partir de `PRD.md` con el alcance acordado con el usuario en DEFINE; ninguno se agregó al dividir.
 
