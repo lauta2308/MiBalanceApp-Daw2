@@ -1,0 +1,4 @@
+# DAW's settings for this project, validated against daw/config.schema.json.
+# Written by /daw-init; edit it between tickets, never during one.
+version: 1
+spec-format: daw
