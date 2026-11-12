@@ -12,3 +12,4 @@
 ### Changed
 - [FIX-001] El mensaje de lista vacía de la sección Cuenta dice "Aquí verás sus movimientos.".
 - [FIX-002] El mensaje de lista vacía de la sección Cuenta vuelve a decir "Aquí verá sus movimientos.".
+- [FIX-003] Git ignora `.vs/` (Visual Studio) y `coverage/` (`vitest --coverage`).
