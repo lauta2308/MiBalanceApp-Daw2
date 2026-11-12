@@ -6,7 +6,7 @@
 | Tools | revisión de código por modelo con búsqueda de patrones (grep), npm audit |
 | Date | 2026-11-12 |
 
-Alcance: los archivos que la rama `feat/FEAT-001e-formulario-mensajes` cambia fuera de `docs/` respecto de `main`, sobre `789c834` (los 3 bloques commiteados): `src/componentes/FormularioMovimiento.jsx`, `src/estilos.css`, `src/componentes/FormularioMovimiento.test.jsx`, `src/flujoIngreso.test.jsx` y `pruebas/movimientos.test.js`. El único cambio de producción es el guardado en curso del formulario (guardia por referencia, `fieldset` deshabilitado y "Guardando…"). No hay migraciones, dependencias nuevas ni cambios en `package.json`.
+Alcance: los archivos que la rama `feat/FEAT-001e-formulario-mensajes` cambia fuera de `docs/` respecto de `main`, sobre `789c834` (los 3 bloques commiteados): `src/componentes/FormularioMovimiento.jsx`, `src/estilos.css`, `src/componentes/FormularioMovimiento.test.jsx`, `src/flujoIngreso.test.jsx` y `pruebas/movimientos.test.js`. El único cambio de producción es el guardado en curso del formulario (guardia por referencia, `fieldset` deshabilitado y "Guardando…"). No hay migraciones, dependencias nuevas ni cambios en `package.json`. Revisado de nuevo en el re-cierre de CODE sobre `b540450`, después del bucle correctivo de la spec: `git diff 789c834 HEAD -- src pruebas supabase package.json package-lock.json` está vacío y `npm audit` no cambió.
 
 | Rule | Verdict | Notes |
 |---|---|---|
