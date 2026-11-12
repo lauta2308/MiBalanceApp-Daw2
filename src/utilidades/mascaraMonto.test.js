@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   AplicarMascaraMonto,
   CalcularPosicionCursor,
+  ContarSignificativos,
   NormalizarMontoPegado,
 } from './mascaraMonto.js'
 
@@ -42,7 +43,7 @@ describe('AplicarMascaraMonto', () => {
     expect(AplicarMascaraMonto(5)).toBe('')
   })
 
-  it('test_mascara_texto_largo_sin_retroceso: procesa 10.000 caracteres mezclados en menos de 50 ms', () => {
+  it('test_mascara_texto_largo_sin_retroceso: procesa 10.000 caracteres mezclados en menos de 50 ms y una parte entera de 500.000 dígitos en tiempo lineal', () => {
     const textoLargo = '1a.2,'.repeat(2000)
     const inicio = performance.now()
     const resultado = AplicarMascaraMonto(textoLargo)
@@ -58,7 +59,10 @@ describe('AplicarMascaraMonto', () => {
     const resultadoLargo = AplicarMascaraMonto(enteraLarga)
     const duracionLarga = performance.now() - inicioLargo
 
-    expect(duracionLarga).toBeLessThan(200)
+    // Cota amplia: sola tarda ~70 ms, pero con la suite en paralelo llega a
+    // ~300 ms. La versión cuadrática tarda entre 1,8 s y 4,3 s, así que 1 s
+    // la sigue rechazando sin volver inestable la prueba.
+    expect(duracionLarga).toBeLessThan(1000)
     expect(resultadoLargo.length).toBe(500000 + 166666 + 2)
     expect(resultadoLargo.startsWith('12.121.212')).toBe(true)
     expect(resultadoLargo.endsWith('.212,5')).toBe(true)
@@ -82,5 +86,14 @@ describe('CalcularPosicionCursor', () => {
     expect(CalcularPosicionCursor('1.500,50', 0)).toBe(8)
     expect(CalcularPosicionCursor('1.500,50', 99)).toBe(0)
     expect(CalcularPosicionCursor('1.500', 3)).toBe(1)
+  })
+})
+
+describe('ContarSignificativos', () => {
+  it('test_contar_significativos: cuenta solo dígitos y comas', () => {
+    expect(ContarSignificativos('1.500,50')).toBe(7)
+    expect(ContarSignificativos('1a.500')).toBe(4)
+    expect(ContarSignificativos('.')).toBe(0)
+    expect(ContarSignificativos('')).toBe(0)
   })
 })

@@ -71,6 +71,19 @@ export function NormalizarMontoPegado(texto) {
   return texto
 }
 
+// Cantidad de dígitos y comas del texto: lo que la máscara conserva.
+export function ContarSignificativos(texto) {
+  let cantidad = 0
+
+  for (const caracter of texto) {
+    if (SIGNIFICATIVO.test(caracter)) {
+      cantidad += 1
+    }
+  }
+
+  return cantidad
+}
+
 // Menor índice de textoMostrado con exactamente cantidadSignificativosDespues
 // dígitos o comas a su derecha. Si no alcanzan, devuelve 0.
 export function CalcularPosicionCursor(textoMostrado, cantidadSignificativosDespues) {
