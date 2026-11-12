@@ -545,3 +545,89 @@ describe.skipIf(!configuracion)('Precisión de montos y saldo contra Supabase re
     expect(await LeerSaldoTexto(cliente)).toBe('1999999999999.98')
   }, TIEMPO_MAXIMO_RED_MS)
 })
+
+const TIEMPO_MAXIMO_SECUENCIA_MS = 120000
+
+// 20 altas con montos distintos (0, 1 y 2 decimales, entre "0.01" y "999999999999.99") y fechas distintas.
+// Total esperado: "1501234778407.32".
+const ALTAS_SECUENCIA = [
+  { monto: '0.01', fecha: '2026-01-01' },
+  { monto: '999999999999.99', fecha: '2026-10-31' },
+  { monto: '1', fecha: '2026-01-15' },
+  { monto: '0.5', fecha: '2026-02-03' },
+  { monto: '12.34', fecha: '2026-02-14' },
+  { monto: '250', fecha: '2026-02-28' },
+  { monto: '1000.1', fecha: '2026-03-10' },
+  { monto: '0.99', fecha: '2026-03-21' },
+  { monto: '75000', fecha: '2026-04-01' },
+  { monto: '3.3', fecha: '2026-04-17' },
+  { monto: '123456.78', fecha: '2026-05-05' },
+  { monto: '42', fecha: '2026-05-25' },
+  { monto: '9999.9', fecha: '2026-06-09' },
+  { monto: '0.07', fecha: '2026-06-30' },
+  { monto: '500000000000', fecha: '2026-07-14' },
+  { monto: '88.8', fecha: '2026-07-31' },
+  { monto: '1234567890.12', fecha: '2026-08-12' },
+  { monto: '7', fecha: '2026-08-29' },
+  { monto: '0.1', fecha: '2026-09-18' },
+  { monto: '654.32', fecha: '2026-10-07' },
+]
+
+// Mismo criterio que en flujoIngreso.test.jsx: el monto en texto pasa a centavos exactos, sin float.
+function ConvertirMontoACentavos(montoTexto) {
+  const [enteros, decimales = ''] = montoTexto.split('.')
+  return BigInt(enteros) * 100n + BigInt(decimales.padEnd(2, '0'))
+}
+
+// tipo y monto::text de los movimientos de la cuenta (la única del usuario, por RLS).
+async function LeerMontosTexto(cliente) {
+  const { data, error } = await cliente.from('bat_movimientos').select('tipo, monto::text')
+  expect(error).toBeNull()
+  return data
+}
+
+// Suite aparte con su propio usuario: correrla sola (-t) crea un único usuario anónimo.
+describe.skipIf(!configuracion)('Consistencia del saldo contra Supabase real', () => {
+  it('test_secuencia_veinte_altas_saldo_consistente_api: con saldo 0, después de cada una de 20 altas con montos y fechas distintos, el saldo es igual a la suma de ingresos menos gastos y a la suma esperada, con 0 diferencias', async () => {
+    const { cliente, idPagoIngresado } = await CrearUsuarioConPagoIngresado()
+    expect(await LeerSaldoTexto(cliente)).toBe('0')
+
+    let esperadoCentavos = 0n
+    const diferencias = []
+
+    for (const [indice, { monto, fecha }] of ALTAS_SECUENCIA.entries()) {
+      const { data, error } = await AgregarMovimiento(cliente, {
+        tipo: 'INGRESO',
+        monto,
+        fecha,
+        idCategoria: idPagoIngresado,
+      })
+      expect(error, `alta ${indice + 1} (${monto}, ${fecha})`).toBeNull()
+      expect(typeof data).toBe('string')
+      esperadoCentavos += ConvertirMontoACentavos(monto)
+
+      const saldoCentavos = ConvertirMontoACentavos(await LeerSaldoTexto(cliente))
+      const movimientos = await LeerMontosTexto(cliente)
+      expect(movimientos, `alta ${indice + 1}`).toHaveLength(indice + 1)
+      const sumaMovimientosCentavos = movimientos.reduce(
+        (suma, movimiento) =>
+          movimiento.tipo === 'INGRESO'
+            ? suma + ConvertirMontoACentavos(movimiento.monto)
+            : suma - ConvertirMontoACentavos(movimiento.monto),
+        0n,
+      )
+
+      if (saldoCentavos !== sumaMovimientosCentavos || saldoCentavos !== esperadoCentavos) {
+        diferencias.push({
+          alta: indice + 1,
+          saldo: String(saldoCentavos),
+          sumaMovimientos: String(sumaMovimientosCentavos),
+          esperado: String(esperadoCentavos),
+        })
+      }
+    }
+
+    expect(diferencias).toEqual([])
+    expect(esperadoCentavos).toBe(150123477840732n)
+  }, TIEMPO_MAXIMO_SECUENCIA_MS)
+})

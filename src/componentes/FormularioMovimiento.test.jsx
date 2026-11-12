@@ -35,6 +35,17 @@ const MENSAJE_ERROR_CARGA = 'No se pudo cargar el formulario. Vuelva a intentarl
 const MENSAJE_EXITO = 'Ingreso registrado con éxito.'
 const ERROR_TECNICO = 'P0001: violates check constraint bat_movimientos'
 
+// Copia de la de SeccionCuenta.test.jsx: deja el alta pendiente hasta que la prueba la resuelva.
+function CrearPromesaControlada() {
+  let resolver
+  let rechazar
+  const promesa = new Promise((alResolver, alRechazar) => {
+    resolver = alResolver
+    rechazar = alRechazar
+  })
+  return { promesa, resolver, rechazar }
+}
+
 // Muestra dónde terminó la navegación y con qué state, para comprobarlo desde la prueba.
 function SondaCuenta() {
   const ubicacion = useLocation()
@@ -624,5 +635,111 @@ describe('FormularioMovimiento', () => {
 
     expect(screen.getByRole('option', { name: '<img src=x onerror=alert(1)>' })).toBeInTheDocument()
     expect(container.querySelector('img')).toBeNull()
+  })
+
+  it('test_guardar_doble_clic_duplicado_rechazado: con el alta pendiente, un clic en "Guardar" y un segundo envío del formulario llaman a AgregarIngreso una sola vez', async () => {
+    const alta = CrearPromesaControlada()
+    AgregarIngresoSimulado.mockReturnValue(alta.promesa)
+    const usuario = userEvent.setup()
+
+    RenderizarFormulario()
+    await ObtenerTitulo()
+
+    await usuario.type(ObtenerCampoMonto(), '500')
+    const botonGuardar = screen.getByRole('button', { name: 'Guardar' })
+    const formulario = botonGuardar.closest('form')
+
+    await usuario.click(botonGuardar)
+    // El submit llega a onSubmit aunque el botón ya esté deshabilitado: lo corta la guardia.
+    fireEvent.submit(formulario)
+
+    expect(AgregarIngresoSimulado).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      alta.resolver(undefined)
+    })
+
+    expect(await screen.findByTestId('sonda-cuenta')).toHaveTextContent(`Cuenta|/|${MENSAJE_EXITO}`)
+    expect(AgregarIngresoSimulado).toHaveBeenCalledTimes(1)
+  })
+
+  it('test_guardando_deshabilita_formulario: con el alta pendiente "Guardar" dice "Guardando…" y quedan deshabilitados los campos, el calendario abierto, "Cancelar" y "Volver"; al resolver navega a "/"', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 10, 6, 12, 0))
+    const alta = CrearPromesaControlada()
+    AgregarIngresoSimulado.mockReturnValue(alta.promesa)
+    const usuario = userEvent.setup()
+
+    RenderizarFormulario()
+    await ObtenerTitulo()
+
+    await usuario.type(ObtenerCampoMonto(), '500')
+    await usuario.click(ObtenerBotonFecha('06/11/2026'))
+    // Se envía sin hacer clic fuera del calendario, para que siga abierto al guardar.
+    fireEvent.submit(screen.getByRole('button', { name: 'Guardar' }).closest('form'))
+
+    const botonGuardando = await screen.findByRole('button', { name: 'Guardando…' })
+    expect(botonGuardando).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Guardar' })).not.toBeInTheDocument()
+    expect(ObtenerCampoMonto()).toBeDisabled()
+    expect(screen.getByLabelText('Categoría')).toBeDisabled()
+    expect(ObtenerBotonFecha('06/11/2026')).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Volver' })).toBeDisabled()
+    expect(screen.getByRole('combobox', { name: 'Elegir el año' })).toBeDisabled()
+    expect(screen.getByRole('combobox', { name: 'Elegir el mes' })).toBeDisabled()
+    expect(ObtenerDia(5, 'noviembre de 2026')).toBeDisabled()
+
+    await act(async () => {
+      alta.resolver(undefined)
+    })
+
+    expect(await screen.findByTestId('sonda-cuenta')).toHaveTextContent(`Cuenta|/|${MENSAJE_EXITO}`)
+  })
+
+  it('test_falla_alta_rehabilita_formulario_rechazado: si AgregarIngreso es rechazado muestra el mensaje fijo, vuelve "Guardar" habilitado, conserva los datos y permite volver a guardar', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 10, 6, 12, 0))
+    const alta = CrearPromesaControlada()
+    AgregarIngresoSimulado.mockReturnValueOnce(alta.promesa)
+    const usuario = userEvent.setup()
+
+    RenderizarFormulario()
+    await ObtenerTitulo()
+
+    await usuario.type(ObtenerCampoMonto(), '500')
+    await usuario.selectOptions(screen.getByLabelText('Categoría'), 'Sueldo')
+    await ElegirFecha15DeMarzoDe1990(usuario)
+    await usuario.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    expect(await screen.findByRole('button', { name: 'Guardando…' })).toBeDisabled()
+
+    await act(async () => {
+      alta.rechazar(new Error(ERROR_TECNICO))
+    })
+
+    const dialogo = await screen.findByRole('alertdialog')
+    expect(dialogo.textContent).toBe(`${MENSAJE_ERROR_ALTA}Aceptar`)
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Aceptar' }))
+
+    const botonGuardar = screen.getByRole('button', { name: 'Guardar' })
+    expect(botonGuardar).toBeEnabled()
+    expect(screen.queryByRole('button', { name: 'Guardando…' })).not.toBeInTheDocument()
+    expect(ObtenerCampoMonto()).toBeEnabled()
+    expect(ObtenerCampoMonto()).toHaveValue('500')
+    expect(screen.getByLabelText('Categoría')).toHaveValue('id-sueldo')
+    expect(ObtenerBotonFecha('15/03/1990')).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Volver' })).toBeEnabled()
+
+    await usuario.click(botonGuardar)
+
+    expect(await screen.findByTestId('sonda-cuenta')).toHaveTextContent(`Cuenta|/|${MENSAJE_EXITO}`)
+    expect(AgregarIngresoSimulado).toHaveBeenCalledTimes(2)
+    expect(AgregarIngresoSimulado).toHaveBeenLastCalledWith({
+      montoTexto: '500',
+      fecha: '1990-03-15',
+      idCategoria: 'id-sueldo',
+    })
   })
 })

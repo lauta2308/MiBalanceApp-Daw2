@@ -64,6 +64,9 @@ export default function FormularioMovimiento() {
   // Hoy preseleccionado (FR-05); se envía tal cual, sin conversiones, como día calendario local.
   const [fecha, EstablecerFecha] = useState(() => ObtenerFechaHoy())
   const cargaEnCurso = useRef(false)
+  // Corta el segundo envío en el mismo tick, antes de que el render deshabilite el formulario (ADR-006).
+  const envioEnCurso = useRef(false)
+  const [guardando, EstablecerGuardando] = useState(false)
   const campoMonto = useRef(null)
   const posicionCursorPendiente = useRef(null)
   // Cambia en cada tecleo, aunque la máscara deje el texto igual, para volver a ubicar el cursor.
@@ -157,6 +160,10 @@ export default function FormularioMovimiento() {
   async function ManejarEnvio(evento) {
     evento.preventDefault()
 
+    if (envioEnCurso.current) {
+      return
+    }
+
     const montoValidado = ValidarMonto(montoTexto)
 
     if (montoValidado === null) {
@@ -169,14 +176,20 @@ export default function FormularioMovimiento() {
       return
     }
 
+    envioEnCurso.current = true
+    EstablecerGuardando(true)
+
     try {
       await AgregarIngreso({ montoTexto: montoValidado, fecha, idCategoria })
     } catch (error) {
       RegistrarErrorTecnico(error)
+      envioEnCurso.current = false
+      EstablecerGuardando(false)
       EstablecerMensajeError(MENSAJE_ERROR_ALTA)
       return
     }
 
+    // La guardia queda activa: el formulario se desmonta al navegar.
     Navegar(RUTA_CUENTA, { state: { mensajeExito: MENSAJE_EXITO_INGRESO } })
   }
 
@@ -197,62 +210,71 @@ export default function FormularioMovimiento() {
   return (
     <section className="formulario-movimiento">
       <header className="encabezado-formulario">
-        <button type="button" className="boton-volver" aria-label="Volver" onClick={ManejarVolver}>
+        <button
+          type="button"
+          className="boton-volver"
+          aria-label="Volver"
+          onClick={ManejarVolver}
+          disabled={guardando}
+        >
           ←
         </button>
         <h1>Añadir Ingreso</h1>
       </header>
 
       <form onSubmit={ManejarEnvio} noValidate>
-        <div className="campo-formulario">
-          <label htmlFor={idCampoMonto}>Monto</label>
-          <input
-            id={idCampoMonto}
-            ref={campoMonto}
-            type="text"
-            inputMode="decimal"
-            autoComplete="off"
-            value={montoTexto}
-            onChange={ManejarCambioMonto}
-            onPaste={ManejarPegadoMonto}
-          />
-        </div>
+        {/* Deshabilita de una vez los campos, el calendario abierto, "Guardar" y "Cancelar". */}
+        <fieldset className="campos-formulario" disabled={guardando}>
+          <div className="campo-formulario">
+            <label htmlFor={idCampoMonto}>Monto</label>
+            <input
+              id={idCampoMonto}
+              ref={campoMonto}
+              type="text"
+              inputMode="decimal"
+              autoComplete="off"
+              value={montoTexto}
+              onChange={ManejarCambioMonto}
+              onPaste={ManejarPegadoMonto}
+            />
+          </div>
 
-        <div className="campo-formulario">
-          <label htmlFor={idCampoCategoria}>Categoría</label>
-          <select
-            id={idCampoCategoria}
-            value={idCategoria}
-            onChange={(evento) => EstablecerIdCategoriaElegida(evento.target.value)}
-          >
-            {datos.categorias.map((categoria) => (
-              <option key={categoria.id} value={categoria.id}>
-                {categoria.nombre}
-              </option>
-            ))}
-          </select>
-        </div>
+          <div className="campo-formulario">
+            <label htmlFor={idCampoCategoria}>Categoría</label>
+            <select
+              id={idCampoCategoria}
+              value={idCategoria}
+              onChange={(evento) => EstablecerIdCategoriaElegida(evento.target.value)}
+            >
+              {datos.categorias.map((categoria) => (
+                <option key={categoria.id} value={categoria.id}>
+                  {categoria.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        <div className="campo-formulario">
-          <label htmlFor={idCampoFecha} id={idEtiquetaFecha}>
-            Fecha
-          </label>
-          <SelectorFecha
-            fecha={fecha}
-            alCambiar={EstablecerFecha}
-            idCampo={idCampoFecha}
-            idEtiqueta={idEtiquetaFecha}
-          />
-        </div>
+          <div className="campo-formulario">
+            <label htmlFor={idCampoFecha} id={idEtiquetaFecha}>
+              Fecha
+            </label>
+            <SelectorFecha
+              fecha={fecha}
+              alCambiar={EstablecerFecha}
+              idCampo={idCampoFecha}
+              idEtiqueta={idEtiquetaFecha}
+            />
+          </div>
 
-        <div className="acciones-formulario">
-          <button type="submit" className="boton-principal">
-            Guardar
-          </button>
-          <button type="button" className="boton-secundario" onClick={ManejarVolver}>
-            Cancelar
-          </button>
-        </div>
+          <div className="acciones-formulario">
+            <button type="submit" className="boton-principal">
+              {guardando ? 'Guardando…' : 'Guardar'}
+            </button>
+            <button type="button" className="boton-secundario" onClick={ManejarVolver}>
+              Cancelar
+            </button>
+          </div>
+        </fieldset>
       </form>
 
       {mensajeError && (

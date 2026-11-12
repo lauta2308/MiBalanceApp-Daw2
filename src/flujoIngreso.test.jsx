@@ -471,3 +471,188 @@ describe('Flujo del monto con máscara y límites', () => {
     expect(baseSimulada.saldo).toBe('1999999999999.98')
   })
 })
+
+// Copia de la de SeccionCuenta.test.jsx: deja el alta pendiente hasta que la prueba decida.
+function CrearPromesaControlada() {
+  let resolver
+  let rechazar
+  const promesa = new Promise((alResolver, alRechazar) => {
+    resolver = alResolver
+    rechazar = alRechazar
+  })
+  return { promesa, resolver, rechazar }
+}
+
+const MENSAJE_MONTO_CERO = 'El monto debe ser mayor a 0.'
+const MENSAJE_ERROR_CARGA_CUENTA = 'No se pudo cargar su cuenta. Vuelva a intentarlo.'
+const ERROR_TECNICO_CARGA = 'FetchError: connect ECONNREFUSED 127.0.0.1:54321 /rest/v1/bat_cuentas'
+
+async function CompletarFormulario(usuario) {
+  await usuario.type(screen.getByLabelText('Monto'), '500')
+  await usuario.selectOptions(screen.getByLabelText('Categoría'), 'Sueldo')
+  await ElegirDiaDe2026(usuario, { mes: 'Octubre', dia: 1 })
+  expect(screen.getByLabelText('Monto')).toHaveValue('500')
+  expect(screen.getByLabelText('Categoría')).toHaveDisplayValue('Sueldo')
+  expect(screen.getByRole('button', { name: 'Fecha 01/10/2026' })).toBeInTheDocument()
+}
+
+function ComprobarFormularioLimpio() {
+  expect(screen.getByLabelText('Monto')).toHaveValue('')
+  expect(screen.getByLabelText('Categoría')).toHaveDisplayValue('Pago Ingresado')
+  expect(screen.getByRole('button', { name: 'Fecha 06/11/2026' })).toBeInTheDocument()
+}
+
+describe('Flujo del formulario y de los mensajes', () => {
+  // Solo se falsea Date: userEvent y los findBy siguen con los temporizadores reales.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 10, 6, 12, 0))
+    ObtenerCategoriasIngresoSimulado.mockResolvedValue(CATEGORIAS_PROPIAS)
+    AgregarIngresoSimulado.mockImplementation(GuardarIngresoEnBase)
+    ObtenerMovimientosSimulado.mockImplementation(ObtenerMovimientosOrdenadosDeBase)
+  })
+
+  it('test_formulario_limpio_al_volver_flujo: tras completar 500, "Sueldo" y el 01/10/2026 y salir con la flecha, con "Cancelar" o guardando, al volver a abrir "Añadir Ingreso" se ven el monto vacío, "Pago Ingresado" y la fecha de hoy (AC-08)', async () => {
+    const usuario = userEvent.setup()
+
+    RenderizarApp()
+    expect(await screen.findByText('USD 0,00')).toBeInTheDocument()
+
+    // Sale con la flecha "Volver".
+    await AbrirFormulario(usuario)
+    ComprobarFormularioLimpio()
+    await CompletarFormulario(usuario)
+    await usuario.click(screen.getByRole('button', { name: 'Volver' }))
+
+    // Sale con "Cancelar".
+    await AbrirFormulario(usuario)
+    ComprobarFormularioLimpio()
+    await CompletarFormulario(usuario)
+    await usuario.click(screen.getByRole('button', { name: 'Cancelar' }))
+
+    // Sale guardando.
+    await AbrirFormulario(usuario)
+    ComprobarFormularioLimpio()
+    await CompletarFormulario(usuario)
+    await usuario.click(screen.getByRole('button', { name: 'Guardar' }))
+    expect(await screen.findByText('USD 500,00')).toBeInTheDocument()
+
+    await AbrirFormulario(usuario)
+    ComprobarFormularioLimpio()
+    expect(AgregarIngresoSimulado).toHaveBeenCalledTimes(1)
+    expect(AgregarIngresoSimulado).toHaveBeenCalledWith({
+      montoTexto: '500',
+      fecha: '2026-10-01',
+      idCategoria: 'id-sueldo',
+    })
+  })
+
+  it('test_doble_clic_guardar_flujo: con saldo 10000.00 y el alta pendiente, un clic en "Guardar" con 1500 seguido de otro envío muestra "Guardando…" y registra un solo ingreso; la cuenta muestra "USD 11.500,00" (AC-21)', async () => {
+    const usuario = userEvent.setup()
+    baseSimulada = { saldo: '10000.00', movimientos: [] }
+    const alta = CrearPromesaControlada()
+    AgregarIngresoSimulado.mockImplementation(async (datosAlta) => {
+      await alta.promesa
+      await GuardarIngresoEnBase(datosAlta)
+    })
+
+    RenderizarApp()
+    expect(await screen.findByText('USD 10.000,00')).toBeInTheDocument()
+
+    await AbrirFormulario(usuario)
+    await usuario.type(screen.getByLabelText('Monto'), '1500')
+    await usuario.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    const botonGuardando = screen.getByRole('button', { name: 'Guardando…' })
+    expect(botonGuardando).toBeDisabled()
+    // El segundo envío llega a onSubmit aunque el botón esté deshabilitado: lo corta la guardia.
+    fireEvent.submit(botonGuardando.closest('form'))
+    expect(AgregarIngresoSimulado).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      alta.resolver()
+    })
+
+    expect(await ObtenerEncabezadoCuenta()).toBeInTheDocument()
+    expect(await screen.findByText('USD 11.500,00')).toBeInTheDocument()
+    expect(AgregarIngresoSimulado).toHaveBeenCalledTimes(1)
+    expect(baseSimulada.movimientos).toHaveLength(1)
+    const items = screen.getAllByRole('listitem')
+    expect(items).toHaveLength(1)
+    expect(within(items[0]).getByText('+1.500,00')).toBeInTheDocument()
+  })
+
+  it('test_segundo_ingreso_con_mensaje_exito_flujo: con "Ingreso registrado con éxito." todavía en pantalla se abre "Añadir Ingreso" y se registra un segundo ingreso de 500 sin cerrar el mensaje (AC-25)', async () => {
+    const usuario = userEvent.setup()
+
+    RenderizarApp()
+    expect(await screen.findByText('USD 0,00')).toBeInTheDocument()
+
+    await AbrirFormulario(usuario)
+    await usuario.type(screen.getByLabelText('Monto'), '500')
+
+    // Relojes falsos completos antes de guardar: el cierre de 3 s no corre mientras la prueba no avance.
+    vi.useFakeTimers()
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    await VaciarPromesas()
+
+    const mensaje = screen.getByRole('status')
+    expect(mensaje).toHaveTextContent(MENSAJE_EXITO)
+    expect(within(mensaje).queryByRole('button')).not.toBeInTheDocument()
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(screen.getByText('USD 500,00')).toBeInTheDocument()
+
+    // Sin cerrar el mensaje, se abre el formulario y se guarda el segundo ingreso.
+    fireEvent.click(screen.getByRole('button', { name: 'Añadir Ingreso' }))
+    await VaciarPromesas()
+    expect(screen.getByRole('heading', { level: 1, name: 'Añadir Ingreso' })).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Monto'), { target: { value: '500' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    await VaciarPromesas()
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Mi Cuenta (USD)' })).toBeInTheDocument()
+    expect(screen.getByText('USD 1.000,00')).toBeInTheDocument()
+    expect(AgregarIngresoSimulado).toHaveBeenCalledTimes(2)
+    expect(AgregarIngresoSimulado.mock.calls.map(([datosAlta]) => datosAlta.montoTexto)).toEqual(['500', '500'])
+    expect(screen.getAllByRole('listitem')).toHaveLength(2)
+    expect(screen.getByRole('status')).toHaveTextContent(MENSAJE_EXITO)
+  })
+
+  it('test_mensaje_error_monto_cero_diez_segundos_flujo: con monto "0", "El monto debe ser mayor a 0." sigue visible a los 10 s y solo se cierra con "Aceptar" (AC-26)', async () => {
+    const usuario = userEvent.setup()
+
+    RenderizarApp()
+    expect(await screen.findByText('USD 0,00')).toBeInTheDocument()
+    await AbrirFormulario(usuario)
+
+    // Temporizadores falsos completos: un cierre por setTimeout correría al avanzar los 10 s.
+    vi.useFakeTimers()
+    fireEvent.change(screen.getByLabelText('Monto'), { target: { value: '0' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    act(() => {
+      vi.advanceTimersByTime(10000)
+    })
+
+    expect(screen.getByRole('alertdialog').textContent).toBe(`${MENSAJE_MONTO_CERO}Aceptar`)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Aceptar' }))
+
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Monto')).toHaveValue('0')
+    expect(screen.getByRole('heading', { level: 1, name: 'Añadir Ingreso' })).toBeInTheDocument()
+    expect(AgregarIngresoSimulado).not.toHaveBeenCalled()
+  })
+
+  it('test_error_carga_cuenta_sin_detalle_tecnico_flujo: si ObtenerCuenta es rechazado, la sección Cuenta muestra "No se pudo cargar su cuenta. Vuelva a intentarlo." con "Aceptar" y sin el error técnico (AC-33)', async () => {
+    ObtenerCuentaSimulado.mockRejectedValue(new Error(ERROR_TECNICO_CARGA))
+
+    const { container } = RenderizarApp()
+
+    const dialogo = await screen.findByRole('alertdialog')
+    expect(dialogo.textContent).toBe(`${MENSAJE_ERROR_CARGA_CUENTA}Aceptar`)
+    expect(within(dialogo).getByRole('button', { name: 'Aceptar' })).toBeEnabled()
+    expect(container.textContent).not.toContain(ERROR_TECNICO_CARGA)
+    expect(container.textContent).not.toContain('ECONNREFUSED')
+  })
+})
