@@ -29,6 +29,7 @@ const CATEGORIAS = [
   { id: 'id-pago-ingresado', nombre: 'Pago Ingresado', es_defecto: true },
 ]
 const MENSAJE_MONTO_INVALIDO = 'El monto debe ser mayor a 0.'
+const MENSAJE_MONTO_MAXIMO = 'El monto máximo es 999.999.999.999,99.'
 const MENSAJE_ERROR_ALTA = 'No se pudo registrar el ingreso. Vuelva a intentarlo.'
 const MENSAJE_ERROR_CARGA = 'No se pudo cargar el formulario. Vuelva a intentarlo.'
 const MENSAJE_EXITO = 'Ingreso registrado con éxito.'
@@ -337,24 +338,183 @@ describe('FormularioMovimiento', () => {
     expect(screen.queryByTestId('sonda-cuenta')).not.toBeInTheDocument()
   })
 
-  it('test_mensaje_error_validacion_hasta_aceptar: el mensaje sigue visible a los 10 s y solo se cierra con "Aceptar", sin perder los datos', async () => {
+  it('test_campo_monto_rechaza_signo_y_letras: escribir "-50" muestra "50" y escribir "abc50" muestra "50"; signo y letras rechazados', async () => {
+    const usuario = userEvent.setup()
+
+    RenderizarFormulario()
+    await ObtenerTitulo()
+
+    await usuario.type(ObtenerCampoMonto(), '-50')
+    expect(ObtenerCampoMonto()).toHaveValue('50')
+
+    await usuario.clear(ObtenerCampoMonto())
+    await usuario.type(ObtenerCampoMonto(), 'abc50')
+    expect(ObtenerCampoMonto()).toHaveValue('50')
+  })
+
+  it('test_campo_monto_muestra_miles: escribir "1500,50" muestra "1.500,50" y AgregarIngreso recibe "1500.50"', async () => {
+    const usuario = userEvent.setup()
+
+    RenderizarFormulario()
+    await ObtenerTitulo()
+
+    await usuario.type(ObtenerCampoMonto(), '1500,50')
+    expect(ObtenerCampoMonto()).toHaveValue('1.500,50')
+
+    await usuario.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    await screen.findByTestId('sonda-cuenta')
+    expect(AgregarIngresoSimulado).toHaveBeenCalledTimes(1)
+    expect(AgregarIngresoSimulado).toHaveBeenCalledWith(
+      expect.objectContaining({ montoTexto: '1500.50' }),
+    )
+  })
+
+  it('test_campo_monto_tercer_decimal_rechazado: escribir "10,555" muestra "10,55"', async () => {
+    const usuario = userEvent.setup()
+
+    RenderizarFormulario()
+    await ObtenerTitulo()
+
+    await usuario.type(ObtenerCampoMonto(), '10,555')
+
+    expect(ObtenerCampoMonto()).toHaveValue('10,55')
+  })
+
+  it('test_monto_maximo_rechazado_sin_llamar_api: con "1000000000000,00" "Guardar" muestra el mensaje del máximo, no llama a AgregarIngreso y conserva lo escrito', async () => {
+    const usuario = userEvent.setup()
+
+    RenderizarFormulario()
+    await ObtenerTitulo()
+
+    await usuario.type(ObtenerCampoMonto(), '1000000000000,00')
+    expect(ObtenerCampoMonto()).toHaveValue('1.000.000.000.000,00')
+
+    await usuario.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    const dialogo = ObtenerDialogo()
+    expect(dialogo.textContent).toBe(`${MENSAJE_MONTO_MAXIMO}Aceptar`)
+    expect(AgregarIngresoSimulado).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('sonda-cuenta')).not.toBeInTheDocument()
+
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Aceptar' }))
+
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(ObtenerCampoMonto()).toHaveValue('1.000.000.000.000,00')
+  })
+
+  it('test_monto_maximo_exacto_se_envia: con "999999999999,99" el campo muestra "999.999.999.999,99" y AgregarIngreso recibe "999999999999.99"', async () => {
+    const usuario = userEvent.setup()
+
+    RenderizarFormulario()
+    await ObtenerTitulo()
+
+    await usuario.type(ObtenerCampoMonto(), '999999999999,99')
+    expect(ObtenerCampoMonto()).toHaveValue('999.999.999.999,99')
+
+    await usuario.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    await screen.findByTestId('sonda-cuenta')
+    expect(AgregarIngresoSimulado).toHaveBeenCalledTimes(1)
+    expect(AgregarIngresoSimulado).toHaveBeenCalledWith(
+      expect.objectContaining({ montoTexto: '999999999999.99' }),
+    )
+  })
+
+  it('test_campo_monto_cursor_conservado: con "1.500" y el cursor después del "1", escribir "2" deja "12.500" con el cursor después del "2"', async () => {
+    const usuario = userEvent.setup()
+
+    RenderizarFormulario()
+    await ObtenerTitulo()
+
+    const campo = ObtenerCampoMonto()
+    await usuario.type(campo, '1500')
+    expect(campo).toHaveValue('1.500')
+
+    await usuario.type(campo, '2', { initialSelectionStart: 1, initialSelectionEnd: 1 })
+
+    expect(campo).toHaveValue('12.500')
+    expect(campo.selectionStart).toBe(2)
+    expect(campo.selectionEnd).toBe(2)
+  })
+
+  it('test_campo_monto_pegado_punto_decimal: pegar "1500.50" en el campo vacío muestra "1.500,50" y "Guardar" envía "1500.50"; pegar "1.500" muestra "1.500"', async () => {
+    const usuario = userEvent.setup()
+
+    RenderizarFormulario()
+    await ObtenerTitulo()
+
+    const campo = ObtenerCampoMonto()
+    await usuario.click(campo)
+    await usuario.paste('1.500')
+    expect(campo).toHaveValue('1.500')
+
+    await usuario.clear(campo)
+    await usuario.paste('1500.50')
+    expect(campo).toHaveValue('1.500,50')
+    expect(campo.selectionStart).toBe('1.500,50'.length)
+
+    await usuario.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    await screen.findByTestId('sonda-cuenta')
+    expect(AgregarIngresoSimulado).toHaveBeenCalledWith(
+      expect.objectContaining({ montoTexto: '1500.50' }),
+    )
+  })
+
+  it('test_campo_monto_coma_inicial: en el campo vacío, escribir "," y después "5" deja "0,5" con el cursor al final', async () => {
+    const usuario = userEvent.setup()
+
+    RenderizarFormulario()
+    await ObtenerTitulo()
+
+    const campo = ObtenerCampoMonto()
+    await usuario.type(campo, ',')
+    expect(campo).toHaveValue('0,')
+    expect(campo.selectionStart).toBe(2)
+
+    await usuario.type(campo, '5')
+
+    expect(campo).toHaveValue('0,5')
+    expect(campo.selectionStart).toBe(3)
+    expect(campo.selectionEnd).toBe(3)
+  })
+
+  it('test_campo_monto_letra_en_medio_rechazada: con "1.500" y el cursor después del "1", escribir "a" deja "1.500" con el cursor todavía después del "1"', async () => {
+    const usuario = userEvent.setup()
+
+    RenderizarFormulario()
+    await ObtenerTitulo()
+
+    const campo = ObtenerCampoMonto()
+    await usuario.type(campo, '1500')
+    expect(campo).toHaveValue('1.500')
+
+    await usuario.type(campo, 'a', { initialSelectionStart: 1, initialSelectionEnd: 1 })
+
+    expect(campo).toHaveValue('1.500')
+    expect(campo.selectionStart).toBe(1)
+    expect(campo.selectionEnd).toBe(1)
+  })
+
+  it('test_mensaje_error_validacion_hasta_aceptar: con "0" el mensaje sigue visible a los 10 s y solo se cierra con "Aceptar", sin perder los datos; monto inválido rechazado sin llamar a la API', async () => {
     RenderizarFormulario()
     await ObtenerTitulo()
 
     vi.useFakeTimers()
-    fireEvent.change(ObtenerCampoMonto(), { target: { value: 'abc' } })
+    fireEvent.change(ObtenerCampoMonto(), { target: { value: '0' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
 
     act(() => {
       vi.advanceTimersByTime(10000)
     })
 
-    expect(ObtenerDialogo()).toHaveTextContent(MENSAJE_MONTO_INVALIDO)
+    expect(ObtenerDialogo().textContent).toBe(`${MENSAJE_MONTO_INVALIDO}Aceptar`)
 
     fireEvent.click(screen.getByRole('button', { name: 'Aceptar' }))
 
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
-    expect(ObtenerCampoMonto()).toHaveValue('abc')
+    expect(ObtenerCampoMonto()).toHaveValue('0')
     expect(AgregarIngresoSimulado).not.toHaveBeenCalled()
   })
 

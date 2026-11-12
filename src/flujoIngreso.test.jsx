@@ -374,3 +374,100 @@ describe('Flujo de alta con categoría y fecha elegidas', () => {
     ])
   })
 })
+
+// El monto se escribe con la máscara del campo y la base simulada suma en centavos con BigInt,
+// así la cuenta muestra exactamente lo que dejan la máscara, la validación y el formato (NFR-01).
+describe('Flujo del monto con máscara y límites', () => {
+  const MENSAJE_MONTO_MAXIMO = 'El monto máximo es 999.999.999.999,99.'
+
+  beforeEach(() => {
+    ObtenerCategoriasIngresoSimulado.mockResolvedValue(CATEGORIAS_PROPIAS)
+    AgregarIngresoSimulado.mockImplementation(GuardarIngresoEnBase)
+    ObtenerMovimientosSimulado.mockImplementation(ObtenerMovimientosOrdenadosDeBase)
+  })
+
+  it('test_alta_monto_con_miles_flujo: con saldo 10000.00 escribe "1500,50", el campo muestra "1.500,50" y al guardar la cuenta muestra "+1.500,50" y "USD 11.500,50" (AC-16)', async () => {
+    const usuario = userEvent.setup()
+    baseSimulada = { saldo: '10000.00', movimientos: [] }
+
+    RenderizarApp()
+    expect(await screen.findByText('USD 10.000,00')).toBeInTheDocument()
+
+    await AbrirFormulario(usuario)
+    const campoMonto = screen.getByLabelText('Monto')
+    await usuario.type(campoMonto, '1500,50')
+    expect(campoMonto).toHaveValue('1.500,50')
+    await usuario.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    expect(await ObtenerEncabezadoCuenta()).toBeInTheDocument()
+    expect(await screen.findByText('USD 11.500,50')).toBeInTheDocument()
+    expect(AgregarIngresoSimulado).toHaveBeenCalledTimes(1)
+    expect(AgregarIngresoSimulado.mock.calls[0][0]).toMatchObject({ montoTexto: '1500.50' })
+    const items = screen.getAllByRole('listitem')
+    expect(items).toHaveLength(1)
+    expect(within(items[0]).getByText('+1.500,50')).toBeInTheDocument()
+  })
+
+  it('test_monto_maximo_flujo: con saldo 0, "1000000000000,00" muestra "El monto máximo es 999.999.999.999,99." y no registra nada; después "999999999999,99" registra y la cuenta muestra "USD 999.999.999.999,99" (AC-19)', async () => {
+    const usuario = userEvent.setup()
+
+    RenderizarApp()
+    expect(await screen.findByText('USD 0,00')).toBeInTheDocument()
+
+    await AbrirFormulario(usuario)
+    const campoMonto = screen.getByLabelText('Monto')
+    await usuario.type(campoMonto, '1000000000000,00')
+    await usuario.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    const dialogo = await screen.findByRole('alertdialog')
+    expect(dialogo.textContent).toBe(`${MENSAJE_MONTO_MAXIMO}Aceptar`)
+    expect(AgregarIngresoSimulado).not.toHaveBeenCalled()
+    expect(baseSimulada).toEqual({ saldo: '0', movimientos: [] })
+    expect(campoMonto).toHaveValue('1.000.000.000.000,00')
+
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Aceptar' }))
+    await usuario.clear(campoMonto)
+    await usuario.type(campoMonto, '999999999999,99')
+    expect(campoMonto).toHaveValue('999.999.999.999,99')
+    await usuario.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    expect(await ObtenerEncabezadoCuenta()).toBeInTheDocument()
+    expect(await screen.findByText('USD 999.999.999.999,99')).toBeInTheDocument()
+    expect(AgregarIngresoSimulado).toHaveBeenCalledTimes(1)
+    expect(AgregarIngresoSimulado.mock.calls[0][0]).toMatchObject({ montoTexto: '999999999999.99' })
+    const items = screen.getAllByRole('listitem')
+    expect(items).toHaveLength(1)
+    expect(within(items[0]).getByText('+999.999.999.999,99')).toBeInTheDocument()
+  })
+
+  it('test_suma_decimales_flujo: con saldo 0, registrar "0,10" y "0,20" muestra "USD 0,30" (AC-29)', async () => {
+    const usuario = userEvent.setup()
+
+    RenderizarApp()
+    expect(await screen.findByText('USD 0,00')).toBeInTheDocument()
+
+    await RegistrarIngreso(usuario, { monto: '0,10', nombreCategoria: 'Pago Ingresado' })
+    await RegistrarIngreso(usuario, { monto: '0,20', nombreCategoria: 'Pago Ingresado' })
+
+    expect(await screen.findByText('USD 0,30')).toBeInTheDocument()
+    expect(AgregarIngresoSimulado.mock.calls.map(([datosAlta]) => datosAlta.montoTexto)).toEqual(['0.10', '0.20'])
+    expect(baseSimulada.saldo).toBe('0.30')
+  })
+
+  it('test_dos_montos_maximos_flujo: con saldo 0, registrar dos veces "999999999999,99" muestra "USD 1.999.999.999.999,98" (AC-30)', async () => {
+    const usuario = userEvent.setup()
+
+    RenderizarApp()
+    expect(await screen.findByText('USD 0,00')).toBeInTheDocument()
+
+    await RegistrarIngreso(usuario, { monto: '999999999999,99', nombreCategoria: 'Pago Ingresado' })
+    await RegistrarIngreso(usuario, { monto: '999999999999,99', nombreCategoria: 'Pago Ingresado' })
+
+    expect(await screen.findByText('USD 1.999.999.999.999,98')).toBeInTheDocument()
+    expect(AgregarIngresoSimulado.mock.calls.map(([datosAlta]) => datosAlta.montoTexto)).toEqual([
+      '999999999999.99',
+      '999999999999.99',
+    ])
+    expect(baseSimulada.saldo).toBe('1999999999999.98')
+  })
+})

@@ -1,11 +1,22 @@
-import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import MensajeError from './MensajeError.jsx'
 import SelectorFecha from './SelectorFecha.jsx'
 import { AgregarIngreso } from '../servicios/movimientos.js'
 import { ObtenerCategoriasIngreso } from '../servicios/categorias.js'
 import { ObtenerFechaHoy } from '../utilidades/fechas.js'
-import { MENSAJE_MONTO_INVALIDO, ValidarMonto } from '../utilidades/validacionMonto.js'
+import {
+  AplicarMascaraMonto,
+  CalcularPosicionCursor,
+  ContarSignificativos,
+  NormalizarMontoPegado,
+} from '../utilidades/mascaraMonto.js'
+import {
+  MENSAJE_MONTO_INVALIDO,
+  MENSAJE_MONTO_MAXIMO,
+  ValidarMonto,
+  ValidarMontoMaximo,
+} from '../utilidades/validacionMonto.js'
 import { MENSAJE_EXITO_INGRESO } from '../utilidades/mensajes.js'
 
 const ESTADO_CARGANDO = 'cargando'
@@ -53,6 +64,61 @@ export default function FormularioMovimiento() {
   // Hoy preseleccionado (FR-05); se envía tal cual, sin conversiones, como día calendario local.
   const [fecha, EstablecerFecha] = useState(() => ObtenerFechaHoy())
   const cargaEnCurso = useRef(false)
+  const campoMonto = useRef(null)
+  const posicionCursorPendiente = useRef(null)
+  // Cambia en cada tecleo, aunque la máscara deje el texto igual, para volver a ubicar el cursor.
+  const [versionMonto, EstablecerVersionMonto] = useState(0)
+
+  useLayoutEffect(() => {
+    const posicion = posicionCursorPendiente.current
+
+    if (posicion === null || campoMonto.current === null) {
+      return
+    }
+
+    campoMonto.current.setSelectionRange(posicion, posicion)
+    posicionCursorPendiente.current = null
+  }, [versionMonto])
+
+  // Aplica la máscara y deja el cursor con los mismos dígitos y comas a su derecha.
+  function ActualizarMonto(valorCrudo, posicionCursorCruda) {
+    const montoConMascara = AplicarMascaraMonto(valorCrudo)
+    const significativosDespues = ContarSignificativos(valorCrudo.slice(posicionCursorCruda))
+    // Si la máscara descartó caracteres, el conteo no puede superar a los que quedaron.
+    const significativosConservados = Math.min(
+      significativosDespues,
+      ContarSignificativos(montoConMascara),
+    )
+
+    EstablecerMontoTexto(montoConMascara)
+    posicionCursorPendiente.current = CalcularPosicionCursor(montoConMascara, significativosConservados)
+    EstablecerVersionMonto((version) => version + 1)
+  }
+
+  function ManejarCambioMonto(evento) {
+    const valor = evento.target.value
+    const posicionCursor = evento.target.selectionStart ?? valor.length
+    ActualizarMonto(valor, posicionCursor)
+  }
+
+  // "1500.50" pegado se lee como decimal; el resto sigue el camino del tecleo.
+  function ManejarPegadoMonto(evento) {
+    const textoPegado = evento.clipboardData.getData('text')
+    const textoNormalizado = NormalizarMontoPegado(textoPegado)
+
+    if (textoNormalizado === textoPegado) {
+      return
+    }
+
+    evento.preventDefault()
+    const campo = evento.target
+    const inicioSeleccion = campo.selectionStart ?? campo.value.length
+    const finSeleccion = campo.selectionEnd ?? inicioSeleccion
+    const valorCrudo =
+      campo.value.slice(0, inicioSeleccion) + textoNormalizado + campo.value.slice(finSeleccion)
+
+    ActualizarMonto(valorCrudo, inicioSeleccion + textoNormalizado.length)
+  }
 
   const IniciarCarga = useCallback(async () => {
     if (cargaEnCurso.current) {
@@ -98,6 +164,11 @@ export default function FormularioMovimiento() {
       return
     }
 
+    if (!ValidarMontoMaximo(montoValidado)) {
+      EstablecerMensajeError(MENSAJE_MONTO_MAXIMO)
+      return
+    }
+
     try {
       await AgregarIngreso({ montoTexto: montoValidado, fecha, idCategoria })
     } catch (error) {
@@ -137,11 +208,13 @@ export default function FormularioMovimiento() {
           <label htmlFor={idCampoMonto}>Monto</label>
           <input
             id={idCampoMonto}
+            ref={campoMonto}
             type="text"
             inputMode="decimal"
             autoComplete="off"
             value={montoTexto}
-            onChange={(evento) => EstablecerMontoTexto(evento.target.value)}
+            onChange={ManejarCambioMonto}
+            onPaste={ManejarPegadoMonto}
           />
         </div>
 
