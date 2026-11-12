@@ -53,7 +53,7 @@ describe('FormatearSaldo', () => {
     expect(FormatearSaldo('-1000', 'USD')).toBe('USD -1.000,00')
   })
 
-  it('no pierde dígitos en montos mayores que la precisión de un float', () => {
+  it('test_formatear_saldo_trece_enteros: FormatearSaldo("1999999999999.98", "USD") da "USD 1.999.999.999.999,98" (AC-30)', () => {
     expect(FormatearSaldo('1999999999999.98', 'USD')).toBe('USD 1.999.999.999.999,98')
   })
 
