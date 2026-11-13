@@ -5,7 +5,7 @@
 | Ticket | FEAT-004 |
 | Tracker | none |
 | Date | 2026-11-13T03:10:00Z |
-| PRD loops | 0 |
+| PRD loops | 1 |
 | Loops since last human decision | 0 |
 
 ## Context and Problem
@@ -19,6 +19,7 @@ Decisiones del usuario (2026-11-13):
 - Se revisan dos ecosistemas: las dependencias npm de la raíz del repositorio y las acciones del workflow de integración continua.
 - La revisión es semanal.
 - No debe inundar de pull requests: cada ecosistema junta todas sus actualizaciones en un solo pull request por semana, como máximo 2 por semana en total.
+- Vuelta de PLAN (2026-11-13): Dependabot puede reemplazar el pull request agrupado en lugar de actualizarlo. AC-05 exige un solo pull request abierto por ecosistema, actualizado o reemplazado.
 
 Gestor verificado en el repositorio: npm, con `package.json` y `package-lock.json` en la raíz. No hay manifiestos de otros gestores.
 
@@ -49,7 +50,7 @@ Gestor verificado en el repositorio: npm, con `package.json` y `package-lock.jso
 - AC-02 (FR-02): WHEN se ejecuta la revisión semanal, THE sistema de actualización automática SHALL revisar las acciones usadas en `.github/workflows/`.
 - AC-03 (FR-03): THE configuración SHALL declarar una frecuencia semanal para cada uno de los dos ecosistemas.
 - AC-04 (FR-04): WHEN una revisión encuentra varias actualizaciones en un ecosistema, THE sistema SHALL proponerlas todas en un único pull request.
-- AC-05 (FR-05): WHILE hay un pull request de actualización de versión abierto para un ecosistema, THE sistema SHALL actualizar ese pull request en lugar de abrir otro para el mismo ecosistema.
+- AC-05 (FR-05): WHILE hay un pull request de actualización de versión abierto para un ecosistema, THE sistema SHALL mantener un solo pull request abierto de ese ecosistema, actualizándolo o reemplazándolo.
 - AC-06 (FR-06): WHEN el sistema propone una versión nueva de una acción fijada por SHA, THE pull request SHALL reemplazar el SHA por el de la versión nueva y no por una etiqueta.
 - AC-07 (FR-04): IF la configuración no es válida, THEN THE sistema de actualización automática SHALL informar el error en la pestaña de dependencias del repositorio y no abrir pull requests.
 
