@@ -6,7 +6,7 @@
   - Temporal: mientras se construye la feature central se usa el inicio de sesión anónimo de Supabase. Aislar ese código para reemplazarlo por Google OAuth (RF-22, RF-23) sin tocar la lógica de movimientos.
   - Si falla el inicio de sesión anónimo, mostrar un mensaje de error de RF-105 (en español, tratando de usted, sin detalles técnicos) con el botón "Aceptar" para reintentar. Es un requisito provisorio: cuando se incorpore Google se reemplaza por RF-24.
   - Requiere en Supabase: Authentication → Sign In / Providers → "Allow anonymous sign-ins" activado.
-- Librerías: react-router; react-day-picker + date-fns (calendario); ESLint.
+- Librerías: react-router; react-day-picker (calendario; trae date-fns como dependencia propia, el código no la importa); ESLint.
 - Herramientas de prueba:
   - Vitest + Testing Library + jsdom: pruebas unitarias y de integración, incluido el doble clic en "Guardar" / "Confirmar" de RF-106 (AC-129, AC-130) y el rechazo desde la API de RF-107 (AC-131).
   - Playwright + axe-core: pruebas en un navegador real para el rendimiento de RNF-01 y RNF-02 (AC-114, AC-115: Chrome con la CPU ralentizada 4× y 100 mediciones por operación) y para el uso solo con teclado, el foco visible y el texto alternativo de los íconos de RNF-08 (AC-133).
